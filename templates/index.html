@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>議事録全文検索</title>
+  <style>
+    /* ── リセット & ベース ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Hiragino Sans", "Meiryo", "Yu Gothic", sans-serif;
+      background: #f5f6f8;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ── ヘッダー ── */
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      padding: 24px 32px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    header h1 span.icon { font-size: 1.5rem; }
+    header p.subtitle {
+      font-size: 0.78rem;
+      color: #a0aec0;
+      margin-top: 4px;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── 検索バー ── */
+    .search-wrapper {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 20px 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .search-row {
+      display: flex;
+      gap: 10px;
+      max-width: 860px;
+    }
+    .search-row input[type="text"] {
+      flex: 1;
+      padding: 11px 16px;
+      font-size: 1rem;
+      border: 2px solid #cbd5e0;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .search-row input[type="text"]:focus {
+      border-color: #4a6fa5;
+    }
+    .search-row button {
+      padding: 11px 28px;
+      font-size: 1rem;
+      font-weight: 600;
+      background: #4a6fa5;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      font-family: inherit;
+    }
+    .search-row button:hover { background: #3a5a8c; }
+    .search-row button:active { transform: scale(0.97); }
+
+    /* ── メタ情報バー ── */
+    .meta-bar {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 12px 16px 0;
+      font-size: 0.82rem;
+      color: #718096;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+    }
+    .meta-bar .keyword-tag {
+      background: #ebf4ff;
+      color: #2b6cb0;
+      border: 1px solid #bee3f8;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-weight: 600;
+    }
+
+    /* ── 結果一覧 ── */
+    #results {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 12px 16px 40px;
+    }
+
+    .result-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      transition: box-shadow 0.15s;
+      position: relative;
+    }
+    .result-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
+
+    /* グレードバッジ */
+    .grade-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0;
+      flex-shrink: 0;
+    }
+    .grade-A { background: #fff0f0; color: #c53030; border: 2px solid #fc8181; }
+    .grade-B { background: #fffaf0; color: #b7791f; border: 2px solid #f6ad55; }
+    .grade-C { background: #f0fff4; color: #276749; border: 2px solid #68d391; }
+
+    /* カードヘッダ行 */
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .card-header-info { flex: 1; min-width: 0; }
+
+    .municipality {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1a202c;
+      white-space: nowrap;
+    }
+    .meeting-info {
+      font-size: 0.8rem;
+      color: #718096;
+      margin-top: 3px;
+    }
+    .meeting-info .date {
+      background: #edf2f7;
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-family: monospace;
+      font-size: 0.78rem;
+    }
+    .meeting-info .meeting-name {
+      margin-left: 6px;
+    }
+
+    /* スコアバー */
+    .score-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+      min-width: 52px;
+    }
+    .score-num {
+      font-size: 0.72rem;
+      color: #a0aec0;
+      font-weight: 600;
+    }
+    .score-bar-wrap {
+      width: 40px;
+      height: 5px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #4299e1, #3182ce);
+    }
+    .grade-A .score-bar-fill { background: linear-gradient(90deg, #fc8181, #e53e3e); }
+    .grade-B .score-bar-fill { background: linear-gradient(90deg, #f6ad55, #dd6b20); }
+
+    /* 発言者 */
+    .speaker-row {
+      font-size: 0.82rem;
+      color: #4a5568;
+      margin-bottom: 8px;
+    }
+    .speaker-row .speaker-label {
+      color: #a0aec0;
+      margin-right: 4px;
+    }
+    .speaker-name {
+      font-weight: 600;
+    }
+
+    /* スニペット */
+    .snippet {
+      font-size: 0.88rem;
+      line-height: 1.65;
+      color: #2d3748;
+      background: #f7fafc;
+      border-left: 3px solid #bee3f8;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      word-break: break-all;
+    }
+    .snippet mark {
+      background: #fefcbf;
+      color: #744210;
+      font-weight: 700;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    /* ソースリンク */
+    .source-link {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: #4a6fa5;
+      text-decoration: none;
+      word-break: break-all;
+    }
+    .source-link:hover { text-decoration: underline; }
+
+    /* ── 空状態 / ローディング ── */
+    .state-message {
+      text-align: center;
+      padding: 60px 20px;
+      color: #a0aec0;
+    }
+    .state-message .icon { font-size: 3rem; margin-bottom: 12px; }
+    .state-message p { font-size: 0.95rem; }
+
+    .spinner {
+      display: inline-block;
+      width: 36px; height: 36px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #4a6fa5;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── DB統計パネル ── */
+    #stats-panel {
+      max-width: 920px;
+      margin: 16px auto 0;
+      padding: 0 16px;
+    }
+    .stats-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .stat-chip {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.78rem;
+      color: #4a5568;
+      white-space: nowrap;
+    }
+    .stat-chip strong { color: #2b6cb0; }
+
+    /* ── レスポンシブ ── */
+    @media (max-width: 600px) {
+      header { padding: 18px 16px; }
+      .search-wrapper { padding: 14px 16px; }
+      .search-row button { padding: 11px 16px; }
+      .card-header { flex-wrap: wrap; }
+      .score-area { flex-direction: row; min-width: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1><span class="icon">🏛</span> 議事録全文検索</h1>
+  <p class="subtitle">都道府県・政令指定都市の議会会議録データベース</p>
+</header>
+
+<div class="search-wrapper">
+  <div class="search-row">
+    <input type="text" id="query" placeholder="キーワードを入力（例：産後ケア、再生可能エネルギー）" autofocus>
+    <button id="search-btn" onclick="doSearch()">検索</button>
+  </div>
+</div>
+
+<div id="stats-panel"></div>
+<div class="meta-bar" id="meta-bar"></div>
+<div id="results">
+  <div class="state-message" id="initial-state">
+    <div class="icon">📋</div>
+    <p>キーワードを入力して検索してください</p>
+  </div>
+</div>
+
+<script>
+  // ── Enter キーで検索 ──
+  document.getElementById('query').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doSearch();
+  });
+
+  // ── DB統計を初期表示 ──
+  async function loadStats() {
+    try {
+      const res = await fetch('/stats');
+      const data = await res.json();
+      const panel = document.getElementById('stats-panel');
+      const chips = data.by_municipality.map(m =>
+        `<span class="stat-chip">${m.name} <strong>${m.count.toLocaleString()}</strong>件</span>`
+      ).join('');
+      panel.innerHTML = `
+        <details>
+          <summary style="cursor:pointer;font-size:0.8rem;color:#718096;padding:4px 0;margin-bottom:6px;">
+            収録データ：計 <strong style="color:#2b6cb0">${data.total.toLocaleString()}</strong> 件（クリックで内訳）
+          </summary>
+          <div class="stats-grid">${chips}</div>
+        </details>`;
+    } catch(e) {}
+  }
+  loadStats();
+
+  // ── 検索実行 ──
+  async function doSearch() {
+    const query = document.getElementById('query').value.trim();
+    if (!query) return;
+
+    const resultsEl = document.getElementById('results');
+    const metaEl = document.getElementById('meta-bar');
+
+    resultsEl.innerHTML = `
+      <div class="state-message">
+        <div class="spinner"></div>
+        <p>検索中…</p>
+      </div>`;
+    metaEl.innerHTML = '';
+
+    try {
+      const res = await fetch('/search?q=' + encodeURIComponent(query));
+      const data = await res.json();
+
+      if (data.error) {
+        resultsEl.innerHTML = `<div class="state-message"><div class="icon">⚠️</div><p>${escHtml(data.error)}</p></div>`;
+        return;
+      }
+
+      if (data.results.length === 0) {
+        metaEl.innerHTML = `「<span class="keyword-tag">${escHtml(query)}</span>」の検索結果：0件`;
+        resultsEl.innerHTML = `
+          <div class="state-message">
+            <div class="icon">🔍</div>
+            <p>該当する議事録が見つかりませんでした。<br>3文字以上のキーワードで再検索してください。</p>
+          </div>`;
+        return;
+      }
+
+      metaEl.innerHTML = `「<span class="keyword-tag">${escHtml(query)}</span>」の検索結果：<strong>${data.results.length}</strong>件`;
+
+      const cards = data.results.map(r => buildCard(r, query)).join('');
+      resultsEl.innerHTML = cards;
+
+    } catch(e) {
+      resultsEl.innerHTML = `<div class="state-message"><div class="icon">❌</div><p>通信エラーが発生しました。</p></div>`;
+    }
+  }
+
+  // ── カードHTML生成 ──
+  function buildCard(r, query) {
+    const gradeClass = 'grade-' + r.grade;
+    const snippet = highlightKeywords(escHtml(r.snippet), query);
+    const sourceLink = r.source_url
+      ? `<a class="source-link" href="${escHtml(r.source_url)}" target="_blank" rel="noopener">🔗 ${escHtml(r.source_url)}</a>`
+      : '';
+
+    return `
+    <div class="result-card">
+      <div class="card-header">
+        <div class="grade-badge ${gradeClass}" title="優先度グレード ${r.grade}">${r.grade}</div>
+        <div class="card-header-info">
+          <div class="municipality">${escHtml(r.municipality_name)}</div>
+          <div class="meeting-info">
+            <span class="date">${escHtml(r.meeting_date)}</span>
+            <span class="meeting-name">${escHtml(r.meeting_name)}</span>
+          </div>
+        </div>
+        <div class="score-area">
+          <span class="score-num">${r.score}pt</span>
+          <div class="score-bar-wrap">
+            <div class="score-bar-fill ${gradeClass}" style="width:${r.score}%"></div>
+          </div>
+        </div>
+      </div>
+      ${r.speaker !== '—'
+        ? `<div class="speaker-row"><span class="speaker-label">発言者</span><span class="speaker-name">${escHtml(r.speaker)}</span></div>`
+        : ''}
+      <div class="snippet">${snippet}</div>
+      ${sourceLink}
+    </div>`;
+  }
+
+  // ── キーワードハイライト ──
+  function highlightKeywords(html, query) {
+    const words = query.split(/\s+/).filter(w => w.length > 0);
+    words.sort((a, b) => b.length - a.length); // 長い単語を先にマッチ
+    for (const word of words) {
+      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      html = html.replace(new RegExp(escaped, 'gi'), m => `<mark>${m}</mark>`);
+    }
+    return html;
+  }
+
+  // ── HTML エスケープ ──
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+</script>
+
+</body>
+</html>
