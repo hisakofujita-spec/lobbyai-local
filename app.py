@@ -75,6 +75,19 @@ def calc_grade_score(rank: float, best_rank: float, worst_rank: float) -> tuple[
 # ルート
 # ---------------------------------------------------------------------------
 
+@app.route("/debug")
+def debug():
+    import os
+    return {
+        "cwd": os.getcwd(),
+        "file": __file__,
+        "db_path": str(DB_PATH),
+        "db_exists": os.path.exists(DB_PATH),
+        "dir_contents": os.listdir(os.path.dirname(DB_PATH)) if os.path.exists(os.path.dirname(DB_PATH)) else "dir not found",
+        "root_contents": os.listdir("/var/task") if os.path.exists("/var/task") else "no /var/task",
+    }
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
