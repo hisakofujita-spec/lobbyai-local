@@ -6,15 +6,16 @@ app.py - 議事録全文検索 Web アプリ (Flask)
 アクセス: http://localhost:5000
 """
 
+import os
 import re
 import sqlite3
-from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__)
 
-DB_PATH = Path(__file__).parent / "db" / "minutes.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "db", "minutes.db")
 RESULTS_LIMIT = 50
 SNIPPET_WINDOW = 120  # キーワード前後の文字数
 
@@ -24,8 +25,7 @@ SNIPPET_WINDOW = 120  # キーワード前後の文字数
 # ---------------------------------------------------------------------------
 
 def get_conn() -> sqlite3.Connection:
-    # file:?mode=ro で読み取り専用オープン（Vercel 等の読み取り専用 FS に対応）
-    uri = f"file:{DB_PATH}?mode=ro"
+    uri = "file:{}?mode=ro".format(DB_PATH.replace("\\", "/"))
     conn = sqlite3.connect(uri, uri=True)
     conn.row_factory = sqlite3.Row
     return conn
