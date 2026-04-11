@@ -41,6 +41,27 @@ MAX_PAGES_PER_SITE = 30  # サイトごとの最大取得ページ数
 MAX_PDF_PER_SITE = 20    # サイトごとの最大PDFダウンロード数
 MAX_SESSIONS_GIJIROKU = 10   # gijiroku.com: 取得する最大会期数
 MAX_SPEECHES_PER_SESSION = 20  # gijiroku.com: 1会期あたりの最大発言取得数
+MAX_SCHEDULES_PER_COUNCIL = 5  # ssp.kaigiroku.net: 1会期あたりの最大スケジュール数
+MAX_COUNCILS_SSP = 8  # ssp.kaigiroku.net: 取得する最大会議数
+
+# ssp.kaigiroku.net テナント: name -> slug
+SSP_SITES = {
+    "さいたま市": "saitama",     # tenant_id=134
+    "大阪市":     "cityosaka",   # tenant_id=357
+    "名古屋市":   "nagoya",      # tenant_id=207
+    "京都市":     "kyoto",       # tenant_id=355
+    "相模原市":   "sagamihara",  # tenant_id=400
+    "浜松市":     "hamamatsu",   # tenant_id=405
+    "岡山市":     "okayama",     # tenant_id=359
+}
+
+SSP_API_BASE = "https://ssp.kaigiroku.net/dnp/search"
+
+# kensakusystem.jp テナント: name -> (tenant_path, municipality_name)
+KENSAKUSYSTEM_SITES = {
+    "兵庫": ("hyogopref", "兵庫"),
+    "愛媛": ("ehime",     "愛媛"),
+}
 
 # gijiroku.com の自治体別CGIベースURL
 # 形式: name -> (base_url, search_page_path)
@@ -735,6 +756,270 @@ def scrape_gijiroku(session, name: str, minutes_url: str) -> list[dict]:
     return all_records
 
 
+def _ssp_post(session, endpoint: str, data: dict) -> dict:
+    """ssp.kaigiroku.net の REST API に POST する。"""
+    url = f"{SSP_API_BASE}/{endpoint}"
+    try:
+        resp = session.post(
+            url, data=data,
+            headers={"Referer": "https://ssp.kaigiroku.net/tenant/saitama/SpTop.html"},
+            timeout=REQUEST_TIMEOUT,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception:
+        pass
+    return {}
+
+
+def scrape_ssp_kaigiroku(session, name: str, slug: str) -> list[dict]:
+    """
+    ssp.kaigiroku.net テナントをスクレイピングして発言レコードを返す。
+    REST API: /dnp/search/councils/index → /minutes/get_schedule → /minutes/get_minute
+    """
+    print(f"  [ssp.kaigiroku.net] tenant={slug}")
+
+    # tenant_id を取得
+    tid_url = f"https://ssp.kaigiroku.net/tenant/{slug}/js/tenant.js"
+    _, content = fetch(session, tid_url)
+    tid_text = content.decode("utf-8", errors="replace")
+    tid_m = re.search(r"tenant_id\s*=\s*(\d+)", tid_text)
+    if not tid_m:
+        print("  -> tenant_id 取得失敗")
+        return []
+    tenant_id = int(tid_m.group(1))
+    print(f"  tenant_id={tenant_id}")
+
+    # 会議一覧を取得
+    time.sleep(SLEEP_BETWEEN_REQUESTS)
+    councils_data = _ssp_post(session, "councils/index", {"tenant_id": tenant_id})
+    councils = []
+    for c in councils_data.get("councils", []):
+        for vy in c.get("view_years", []):
+            for ct in vy.get("council_type", []):
+                for cc in ct.get("councils", []):
+                    councils.append({
+                        "council_id": cc["council_id"],
+                        "name": cc["name"].strip(),
+                        "view_year": vy["view_year"],
+                    })
+
+    councils = councils[:MAX_COUNCILS_SSP]
+    print(f"  -> 会議数: {len(councils)} 件を処理")
+
+    all_records = []
+    fetched_at = datetime.utcnow().isoformat()
+
+    for council in councils:
+        council_id = council["council_id"]
+        meeting_name = council["name"]
+        meeting_date = extract_date(meeting_name)
+        # 会議名に日が含まれない場合（例: "令和７年１２月定例会"）は view_year + 月で補完
+        if not meeting_date:
+            yr = int(council["view_year"]) if council["view_year"].isdigit() else 0
+            month_m = re.search(r"(\d{1,2})\s*月", meeting_name)
+            if yr and month_m:
+                meeting_date = f"{yr}-{int(month_m.group(1)):02d}-01"
+
+        time.sleep(SLEEP_BETWEEN_REQUESTS)
+        sched_data = _ssp_post(
+            session, "minutes/get_schedule",
+            {"tenant_id": tenant_id, "council_id": council_id},
+        )
+        schedules = sched_data.get("council_schedules", [])
+
+        for sched in schedules[:MAX_SCHEDULES_PER_COUNCIL]:
+            schedule_id = sched["schedule_id"]
+            sched_name = sched.get("name", "")
+            if not meeting_date:
+                meeting_date = extract_date(sched_name)
+            # スケジュール名（例: "11月26日－01号"）から日付補完
+            if meeting_date and meeting_date.endswith("-01"):
+                sched_date_m = re.search(r"(\d{1,2})月(\d{1,2})日", sched_name)
+                if sched_date_m:
+                    year = meeting_date[:4]
+                    month = int(sched_date_m.group(1))
+                    day = int(sched_date_m.group(2))
+                    meeting_date = f"{year}-{month:02d}-{day:02d}"
+
+            time.sleep(SLEEP_BETWEEN_REQUESTS)
+            min_data = _ssp_post(
+                session, "minutes/get_minute",
+                {"tenant_id": tenant_id, "council_id": council_id, "schedule_id": schedule_id},
+            )
+            minutes_list = min_data.get("tenant_minutes", [])
+
+            source_base = (
+                f"https://ssp.kaigiroku.net/tenant/{slug}/SpMinuteView.html"
+                f"?council_id={council_id}&schedule_id={schedule_id}"
+            )
+
+            for m in minutes_list:
+                if m.get("minute_type_code") == 2:  # 名簿 (member list) をスキップ
+                    continue
+                body_raw = m.get("body", "")
+                body = re.sub(r"<[^>]+>", "", body_raw).strip()
+                if len(body) < 30:
+                    continue
+                title = m.get("title", "").strip()
+                speaker = re.sub(r"^[○◯△◎◆●]\s*", "", title)
+
+                # minute_id を使ってユニークな source_url を生成
+                minute_id = m.get("minute_id", "")
+                source_url = source_base + f"&minute_id={minute_id}"
+
+                all_records.append({
+                    "municipality_name": name,
+                    "meeting_name": meeting_name,
+                    "meeting_date": meeting_date,
+                    "speaker": speaker,
+                    "content": body[:5000],
+                    "source_url": source_url,
+                    "fetched_at": fetched_at,
+                })
+
+        print(f"    {meeting_name}: {len(all_records)} 件累計")
+
+    return all_records
+
+
+def _kensakusystem_get_code(session, tenant_path: str) -> str:
+    """kensakusystem.jp のトップページから Code セッショントークンを取得する。"""
+    url = f"https://www.kensakusystem.jp/{tenant_path}/"
+    _, content = fetch(session, url)
+    text = content.decode("shift_jis", errors="replace")
+    m = re.search(r"Code=([a-z0-9]+)", text)
+    return m.group(1) if m else ""
+
+
+def scrape_kensakusystem(session, name: str, tenant_path: str) -> list[dict]:
+    """
+    kensakusystem.jp をスクレイピングして発言レコードを返す。
+    Search2.exe → data-context → GetText3.exe の流れ。
+    """
+    print(f"  [kensakusystem.jp] tenant={tenant_path}")
+
+    code = _kensakusystem_get_code(session, tenant_path)
+    if not code:
+        print("  -> Code 取得失敗")
+        return []
+    print(f"  Code={code}")
+
+    # 広義キーワード「議員」で検索 → 各会期の代表的な発言を収集
+    kw = "議員"
+    sjis_kw = urllib.parse.quote(kw.encode("shift_jis"))
+    sjis_search = urllib.parse.quote("検索".encode("shift_jis"))
+
+    search_url = (
+        f"https://www.kensakusystem.jp/{tenant_path}/cgi-bin3/Search2.exe"
+        f"?Code={code}&dMode=0&KeyWord={sjis_kw}&searchMode=3&keyMode=10"
+        f"&alltarget=on&eTarget=1&sTarget=2&AhitResult={sjis_search}"
+    )
+    time.sleep(SLEEP_BETWEEN_REQUESTS)
+    status, content = fetch(session, search_url)
+    if status != 200:
+        print(f"  -> Search2.exe HTTP {status}")
+        return []
+
+    text = content.decode("shift_jis", errors="replace")
+    soup = BeautifulSoup(text, "lxml")
+
+    # data-context 属性から結果を取得
+    result_links = soup.find_all("a", {"data-context": True})
+    print(f"  -> 検索結果: {len(result_links)} 件")
+
+    # 各結果から (file_id, pos) のリストを作成（重複除去しつつ全件収集）
+    seen_contexts: set[str] = set()
+    items: list[dict] = []
+    for link in result_links:
+        ctx = link.get("data-context", "")
+        if ctx in seen_contexts:
+            continue
+        seen_contexts.add(ctx)
+        parts = ctx.split("/")
+        if len(parts) < 3:
+            continue
+        file_id, pos, session_id = parts[0], parts[1], parts[2]
+
+        # 議題行（pos=262 など）はスキップ（会議情報を含む行は別途処理）
+        tr = link.find_parent("tr")
+        meeting_info = tr.get_text(" ", strip=True) if tr else ""
+        meeting_name_m = re.search(
+            r"(令和|平成|昭和)\s*\d+\s*年\s*\d+\s*月[^\s]{0,30}(?:定例会|臨時会|特別委員会|委員会)?",
+            meeting_info
+        )
+        meeting_name = meeting_name_m.group(0).strip() if meeting_name_m else ""
+        meeting_date = extract_date(meeting_info)
+
+        items.append({
+            "file_id": file_id,
+            "pos": pos,
+            "session_id": session_id,
+            "meeting_name": meeting_name,
+            "meeting_date": meeting_date,
+        })
+
+    items = items[:MAX_SESSIONS_GIJIROKU * MAX_SPEECHES_PER_SESSION]
+    print(f"  -> 取得対象: {len(items)} 件")
+
+    all_records = []
+    fetched_at = datetime.utcnow().isoformat()
+    base_url = f"https://www.kensakusystem.jp/{tenant_path}"
+
+    for s in items:
+        file_id = s["file_id"]
+        pos = s["pos"]
+        get_url = (
+            f"{base_url}/cgi-bin3/GetText3.exe"
+            f"?{code}/{file_id}/{pos}/10/3//1/{urllib.parse.quote(kw)}/0"
+        )
+        time.sleep(SLEEP_BETWEEN_REQUESTS)
+        status, content = fetch(session, get_url)
+        if status != 200:
+            continue
+
+        html = content.decode("shift_jis", errors="replace")
+        soup3 = BeautifulSoup(html, "lxml")
+
+        # タイトルから発言者を取得
+        title_tag = soup3.find("title")
+        title_text = title_tag.get_text(strip=True) if title_tag else ""
+        # "令和X年Y月定例会（第N日 M月D日） 発言者名" 形式
+        speaker = ""
+        if "　" in title_text:
+            speaker = title_text.split("　")[-1].strip()
+        elif " " in title_text:
+            speaker = title_text.split(" ")[-1].strip()
+
+        # 本文テキストを抽出
+        for tag in soup3.find_all(["script", "style"]):
+            tag.decompose()
+        body = soup3.get_text("\n", strip=True)
+        if len(body) < 50:
+            continue
+
+        # 会議名/日付が未取得の場合はタイトルから補完
+        meeting_name = s["meeting_name"] or extract_meeting_name(title_text)
+        meeting_date = s["meeting_date"] or extract_date(title_text)
+
+        source_url = (
+            f"{base_url}/cgi-bin3/ResultFrame.exe"
+            f"?Code={code}&STYPE={s['session_id']}&MODE=0"
+        )
+
+        all_records.append({
+            "municipality_name": name,
+            "meeting_name": meeting_name,
+            "meeting_date": meeting_date,
+            "speaker": speaker,
+            "content": body[:5000],
+            "source_url": source_url,
+            "fetched_at": fetched_at,
+        })
+
+    return all_records
+
+
 def load_survey() -> list[dict]:
     """survey_report.csv を読み込む。存在しない場合は municipalities.csv から全件返す。"""
     if SURVEY_CSV.exists():
@@ -821,33 +1106,54 @@ def main():
                 total_pdfs += count
 
             elif difficulty == "C":
-                # gijiroku.com 系外部検索システム
-                structure_notes = row.get("structure_notes", "")
+                # 外部検索システム: gijiroku.com / ssp.kaigiroku.net / kensakusystem.jp
+                records = []
                 if "gijiroku.com" in minutes_url or name in GIJIROKU_SITES:
-                    parsed_dir = PARSED_DIR / name
-                    parsed_dir.mkdir(parents=True, exist_ok=True)
                     records = scrape_gijiroku(session, name, minutes_url)
-                    if records:
-                        out_file = parsed_dir / "minutes.json"
-                        # 既存レコードとマージ（source_url で重複除外）
-                        existing = []
-                        if out_file.exists():
-                            try:
-                                existing = json.loads(out_file.read_text(encoding="utf-8"))
-                            except Exception:
-                                existing = []
-                        existing_urls = {r.get("source_url") for r in existing}
-                        new_records = [r for r in records
-                                       if r.get("source_url") not in existing_urls]
-                        all_records = existing + new_records
-                        with open(out_file, "w", encoding="utf-8") as f:
-                            json.dump(all_records, f, ensure_ascii=False, indent=2)
-                        print(f"  -> {len(new_records)} 件保存（合計 {len(all_records)} 件）")
-                        total_records += len(new_records)
+                elif "ssp.kaigiroku.net" in minutes_url or name in SSP_SITES:
+                    slug = SSP_SITES.get(name)
+                    if not slug:
+                        # URL から slug を推測: /tenant/{slug}/SpTop.html
+                        m = re.search(r"/tenant/([^/]+)/", minutes_url)
+                        slug = m.group(1) if m else None
+                    if slug:
+                        records = scrape_ssp_kaigiroku(session, name, slug)
                     else:
-                        print("  -> レコードなし")
+                        print(f"  -> SSP slug 不明: {minutes_url}")
+                elif "kensakusystem.jp" in minutes_url or name in KENSAKUSYSTEM_SITES:
+                    tenant_path = KENSAKUSYSTEM_SITES.get(name, (None,))[0]
+                    if not tenant_path:
+                        # URL から tenant_path を推測
+                        m = re.search(r"kensakusystem\.jp/([^/]+)/", minutes_url)
+                        tenant_path = m.group(1) if m else None
+                    if tenant_path:
+                        records = scrape_kensakusystem(session, name, tenant_path)
+                    else:
+                        print(f"  -> kensakusystem.jp テナント不明: {minutes_url}")
                 else:
                     print(f"  -> 未対応の difficulty=C システム: {minutes_url}")
+
+                if records:
+                    parsed_dir = PARSED_DIR / name
+                    parsed_dir.mkdir(parents=True, exist_ok=True)
+                    out_file = parsed_dir / "minutes.json"
+                    # 既存レコードとマージ（source_url で重複除外）
+                    existing = []
+                    if out_file.exists():
+                        try:
+                            existing = json.loads(out_file.read_text(encoding="utf-8"))
+                        except Exception:
+                            existing = []
+                    existing_urls = {r.get("source_url") for r in existing}
+                    new_records = [r for r in records
+                                   if r.get("source_url") not in existing_urls]
+                    all_records_c = existing + new_records
+                    with open(out_file, "w", encoding="utf-8") as f:
+                        json.dump(all_records_c, f, ensure_ascii=False, indent=2)
+                    print(f"  -> {len(new_records)} 件保存（合計 {len(all_records_c)} 件）")
+                    total_records += len(new_records)
+                elif difficulty == "C" and not records:
+                    print("  -> レコードなし")
 
         except Exception as e:
             print(f"  -> エラー（スキップ）: {e}")

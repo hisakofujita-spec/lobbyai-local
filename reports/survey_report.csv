@@ -48,20 +48,20 @@ name,assembly_url,minutes_url,access_type,robots_txt_ok,structure_notes,difficul
 沖縄,https://www.pref.okinawa.jp/kensei/gikai/index.html,https://www.pref.okinawa.jp/kensei/gikai/1020908/index.html,static,unknown,構造判定: 静的HTML（議事録リンク未検出）,A
 札幌市,https://www.gikai.city.sapporo.jp/,https://www.gikai.city.sapporo.jp/record/,unknown,unknown,接続失敗（タイムアウトまたはネットワークエラー）,D
 仙台市,https://www.city.sendai.jp/gikai/,https://ssp.kaigiroku.net/tenant/sendaicity/SpTop.html,unknown,no,HTTP 404,D
-さいたま市,https://www.city.saitama.lg.jp/001/010/,https://ssp.kaigiroku.net/tenant/saitamacity/SpTop.html,unknown,no,HTTP 404,D
+さいたま市,https://www.city.saitama.lg.jp/001/010/,https://ssp.kaigiroku.net/tenant/saitama/SpTop.html,dynamic,yes,外部議事録システム: ssp.kaigiroku.net (tenant=saitama),C
 千葉市,https://www.city.chiba.lg.jp/shigikai/,https://ssp.kaigiroku.net/tenant/chibacity/SpTop.html,unknown,no,HTTP 404,D
 横浜市,https://www.city.yokohama.lg.jp/city-info/zaisei/gikai/,https://www.city.yokohama.lg.jp/city-info/zaisei/gikai/kaigiroku/,unknown,unknown,HTTP 404,D
 川崎市,https://www.city.kawasaki.jp/gikai/,https://www13.gijiroku.com/kawasaki_council/,dynamic,unknown,gijirokuシステム（kawasaki_council）,C
-相模原市,https://www.city.sagamihara.kanagawa.jp/gikai/,https://ssp.kaigiroku.net/tenant/sagamiharacty/SpTop.html,unknown,no,HTTP 404,D
+相模原市,https://www.city.sagamihara.kanagawa.jp/gikai/,https://ssp.kaigiroku.net/tenant/sagamihara/SpTop.html,dynamic,yes,外部議事録システム: ssp.kaigiroku.net (tenant=sagamihara),C
 新潟市,https://www.city.niigata.lg.jp/gikai/,http://www06.gijiroku.com/niigata/,dynamic,unknown,gijirokuシステム（niigata）,C
 静岡市,https://www.city.shizuoka.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/shizuokacity/SpTop.html,unknown,no,HTTP 404,D
-浜松市,https://www.city.hamamatsu.shizuoka.jp/gikai/,https://ssp.kaigiroku.net/tenant/hamamatsucity/SpTop.html,unknown,no,HTTP 404,D
-名古屋市,https://www.city.nagoya.jp/gikai/,https://www.city.nagoya.jp/gikai/category/296-0-0-0-0-0-0-0-0-0.html,unknown,yes,HTTP 404,D
-京都市,https://www.city.kyoto.lg.jp/gikai/,https://www.city.kyoto.dbsr.jp/,unknown,unknown,接続失敗（タイムアウトまたはネットワークエラー）,D
-大阪市,https://www.city.osaka.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/osakacity/SpTop.html,unknown,no,HTTP 404,D
+浜松市,https://www.city.hamamatsu.shizuoka.jp/gikai/,https://ssp.kaigiroku.net/tenant/hamamatsu/SpTop.html,dynamic,yes,外部議事録システム: ssp.kaigiroku.net (tenant=hamamatsu),C
+名古屋市,https://www.city.nagoya.jp/gikai/,https://ssp.kaigiroku.net/tenant/nagoya/SpTop.html,dynamic,yes,外部議事録システム: ssp.kaigiroku.net (tenant=nagoya),C
+京都市,https://www.city.kyoto.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/kyoto/SpTop.html,dynamic,yes,外部議事録システム: ssp.kaigiroku.net (tenant=kyoto),C
+大阪市,https://www.city.osaka.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/cityosaka/SpTop.html,dynamic,yes,外部議事録システム: ssp.kaigiroku.net (tenant=cityosaka),C
 堺市,https://www.city.sakai.lg.jp/shisei/gikai/,http://www12.gijiroku.com/sakai/,dynamic,unknown,gijirokuシステム（sakai）,C
 神戸市,https://www.city.kobe.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/kobecity/SpTop.html,unknown,no,HTTP 404,D
-岡山市,https://www.city.okayama.jp/gikai/,https://ssp.kaigiroku.net/tenant/okayamacity/SpTop.html,unknown,no,HTTP 404,D
+岡山市,https://www.city.okayama.jp/gikai/,https://ssp.kaigiroku.net/tenant/okayama/SpTop.html,dynamic,yes,外部議事録システム: ssp.kaigiroku.net (tenant=okayama),C
 広島市,https://www.city.hiroshima.lg.jp/gikai/,https://www.city.hiroshima.dbsr.jp/,unknown,unknown,接続失敗（タイムアウトまたはネットワークエラー）,D
 北九州市,https://www.city.kitakyushu.lg.jp/gikai/,https://www.city.kitakyushu.dbsr.jp/,unknown,unknown,接続失敗（タイムアウトまたはネットワークエラー）,D
 福岡市,https://www.city.fukuoka.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/fukuokacity/SpTop.html,unknown,no,HTTP 404,D
