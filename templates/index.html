@@ -283,6 +283,50 @@
     }
     .stat-chip strong { color: #2b6cb0; }
 
+    /* ── キーワードチップ ── */
+    .keyword-chips {
+      margin-top: 12px;
+      max-width: 860px;
+    }
+    .keyword-chips-label {
+      font-size: 0.72rem;
+      color: #a0aec0;
+      margin-bottom: 6px;
+      letter-spacing: 0.03em;
+    }
+    .keyword-chips-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .chip {
+      display: inline-block;
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      border-radius: 20px;
+      border: 1px solid;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+      font-family: inherit;
+      background: #fff;
+    }
+    .chip-byoji {
+      color: #2b6cb0;
+      border-color: #bee3f8;
+    }
+    .chip-byoji:hover {
+      background: #ebf4ff;
+    }
+    .chip-sango {
+      color: #744210;
+      border-color: #fbd38d;
+    }
+    .chip-sango:hover {
+      background: #fffaf0;
+    }
+
     /* ── レスポンシブ ── */
     @media (max-width: 600px) {
       header { padding: 18px 16px; }
@@ -302,8 +346,27 @@
 
 <div class="search-wrapper">
   <div class="search-row">
-    <input type="text" id="query" placeholder="キーワードを入力（例：産後ケア、再生可能エネルギー）" autofocus>
+    <input type="text" id="query" placeholder="キーワードを入力（例：病児保育、産後ケア）" autofocus>
     <button id="search-btn" onclick="doSearch()">検索</button>
+  </div>
+  <div class="keyword-chips">
+    <div class="keyword-chips-label">病児保育</div>
+    <div class="keyword-chips-group">
+      <button class="chip chip-byoji" onclick="searchChip('病児保育')">病児保育</button>
+      <button class="chip chip-byoji" onclick="searchChip('病児保育室')">病児保育室</button>
+      <button class="chip chip-byoji" onclick="searchChip('病後児保育')">病後児保育</button>
+      <button class="chip chip-byoji" onclick="searchChip('病児・病後児保育')">病児・病後児保育</button>
+      <button class="chip chip-byoji" onclick="searchChip('訪問型病児保育')">訪問型病児保育</button>
+    </div>
+    <div class="keyword-chips-label">産後ケア</div>
+    <div class="keyword-chips-group">
+      <button class="chip chip-sango" onclick="searchChip('産後ケア')">産後ケア</button>
+      <button class="chip chip-sango" onclick="searchChip('産後ケア事業')">産後ケア事業</button>
+      <button class="chip chip-sango" onclick="searchChip('産後デイサービス')">産後デイサービス</button>
+      <button class="chip chip-sango" onclick="searchChip('産後ショートステイ')">産後ショートステイ</button>
+      <button class="chip chip-sango" onclick="searchChip('産後アウトリーチ')">産後アウトリーチ</button>
+      <button class="chip chip-sango" onclick="searchChip('産後うつ')">産後うつ</button>
+    </div>
   </div>
 </div>
 
@@ -321,6 +384,12 @@
   document.getElementById('query').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') doSearch();
   });
+
+  // ── チップクリックで検索 ──
+  function searchChip(keyword) {
+    document.getElementById('query').value = keyword;
+    doSearch();
+  }
 
   // ── DB統計を初期表示 ──
   async function loadStats() {
