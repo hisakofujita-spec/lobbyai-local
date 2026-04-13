@@ -25,7 +25,8 @@ SNIPPET_WINDOW = 120  # キーワード前後の文字数
 # ---------------------------------------------------------------------------
 
 def get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
+    uri = f"file:{DB_PATH}?mode=ro&immutable=1"
+    conn = sqlite3.connect(uri, uri=True)
     conn.row_factory = sqlite3.Row
     return conn
 
