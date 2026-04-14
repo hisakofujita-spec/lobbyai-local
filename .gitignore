@@ -34,5 +34,5 @@ logs/
 *.db-shm
 *.db-wal
 
-# NOTE: db/minutes.db は意図的に含める（Vercelから参照するため）
-# NOTE: data/parsed/ も含める（インデクサー再実行用）
+# DB本体はVercelビルド時に生成するためgit管理外
+db/minutes.db
