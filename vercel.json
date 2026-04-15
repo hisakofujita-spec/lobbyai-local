@@ -1,6 +1,14 @@
 {
   "version": 2,
   "buildCommand": "python3 scripts/04_indexer.py",
-  "builds": [{"src": "app.py", "use": "@vercel/python"}],
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python",
+      "config": {
+        "includeFiles": ["db/**", "templates/**"]
+      }
+    }
+  ],
   "routes": [{"src": "/(.*)", "dest": "app.py"}]
 }
