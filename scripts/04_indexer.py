@@ -148,7 +148,9 @@ def print_stats(conn: sqlite3.Connection):
         print(f"    {name}: {cnt:,}")
 
 
-def main():
+def main(db_path=None):
+    target = db_path if db_path is not None else DB_PATH
+
     json_files = sorted(PARSED_DIR.glob("*/minutes.json"))
 
     if not json_files:
@@ -156,8 +158,8 @@ def main():
         print("先に 02_scraper.py（および必要に応じて 03_pdf_parser.py）を実行してください。")
         sys.exit(0)
 
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(target))
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
 
@@ -190,11 +192,17 @@ def main():
         rebuild_fts(conn)
 
     print_stats(conn)
+    # WAL を完全にマージして immutable モードで安全に読めるようにする
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     conn.close()
 
-    print(f"\nDB: {DB_PATH}")
+    print(f"\nDB: {target}")
     print(f"次のステップ: python 05_search.py \"産後ケア\"")
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--db-path", type=str, help="出力先 DB パス（省略時: db/minutes.db）")
+    args = parser.parse_args()
+    main(db_path=Path(args.db_path) if args.db_path else None)

@@ -6,18 +6,71 @@ app.py - 議事録全文検索 Web アプリ (Flask)
 アクセス: http://localhost:5000
 """
 
+import gzip
 import os
 import re
+import shutil
 import sqlite3
+import subprocess
+import sys
+from typing import Optional
 
 from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "db", "minutes.db")
 RESULTS_LIMIT = 50
 SNIPPET_WINDOW = 120  # キーワード前後の文字数
+
+# DB パス候補
+_DB_LOCAL = os.path.join(BASE_DIR, "db", "minutes.db")
+_DB_GZ    = os.path.join(BASE_DIR, "db", "minutes.db.gz")
+_DB_TMP   = "/tmp/minutes.db"
+
+_resolved_db_path: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# DB パス解決（優先順: ローカル → /tmp キャッシュ → gz展開 → JSONからビルド）
+# ---------------------------------------------------------------------------
+
+def _resolve_db_path() -> str:
+    global _resolved_db_path
+    if _resolved_db_path is not None:
+        return _resolved_db_path
+
+    # 1. ローカル開発用 DB
+    if os.path.exists(_DB_LOCAL):
+        _resolved_db_path = _DB_LOCAL
+        return _DB_LOCAL
+
+    # 2. /tmp にキャッシュ済み（同一 Lambda コンテナの 2 回目以降）
+    if os.path.exists(_DB_TMP):
+        _resolved_db_path = _DB_TMP
+        return _DB_TMP
+
+    # 3. gzip 圧縮版を /tmp へ展開（Vercel bundle から）
+    if os.path.exists(_DB_GZ):
+        with gzip.open(_DB_GZ, "rb") as f_in, open(_DB_TMP, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        _resolved_db_path = _DB_TMP
+        return _DB_TMP
+
+    # 4. フォールバック: data/parsed/ の JSON から DB をビルド（初回コールドスタート ~60s）
+    parsed_dir = os.path.join(BASE_DIR, "data", "parsed")
+    if os.path.exists(parsed_dir):
+        indexer = os.path.join(BASE_DIR, "scripts", "04_indexer.py")
+        subprocess.run(
+            [sys.executable, indexer, "--db-path", _DB_TMP],
+            check=True, timeout=300, cwd=BASE_DIR,
+        )
+        _resolved_db_path = _DB_TMP
+        return _DB_TMP
+
+    raise FileNotFoundError(
+        "DB が見つかりません。db/minutes.db / db/minutes.db.gz / data/parsed/ のいずれかが必要です。"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -25,7 +78,8 @@ SNIPPET_WINDOW = 120  # キーワード前後の文字数
 # ---------------------------------------------------------------------------
 
 def get_conn() -> sqlite3.Connection:
-    uri = f"file:{DB_PATH}?mode=ro&immutable=1"
+    db_path = _resolve_db_path()
+    uri = f"file:{db_path}?mode=ro&immutable=1"
     conn = sqlite3.connect(uri, uri=True)
     conn.row_factory = sqlite3.Row
     return conn
@@ -99,7 +153,11 @@ def search():
     if not query:
         return jsonify({"results": [], "total": 0, "query": ""})
 
-    conn = get_conn()
+    try:
+        conn = get_conn()
+    except Exception as e:
+        return jsonify({"error": str(e), "results": [], "total": 0, "query": query})
+
     try:
         rows = conn.execute(
             """
@@ -155,7 +213,11 @@ def search():
 
 @app.route("/stats")
 def stats():
-    conn = get_conn()
+    try:
+        conn = get_conn()
+    except Exception as e:
+        return jsonify({"error": str(e), "total": 0, "by_municipality": []})
+
     try:
         total = conn.execute("SELECT COUNT(*) FROM minutes").fetchone()[0]
         by_name = conn.execute(
@@ -174,6 +236,8 @@ def stats():
                 ],
             }
         )
+    except Exception as e:
+        return jsonify({"error": str(e), "total": 0, "by_municipality": []})
     finally:
         conn.close()
 
@@ -183,10 +247,11 @@ def stats():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    if not DB_PATH.exists():
-        print(f"エラー: DB が見つかりません → {DB_PATH}")
+    try:
+        db = _resolve_db_path()
+        print(f"DB: {db}")
+    except FileNotFoundError as e:
+        print(f"エラー: {e}")
         print("先に python3 scripts/04_indexer.py を実行してください。")
-    else:
-        print(f"DB: {DB_PATH}")
-        print("起動: http://localhost:5001")
-        app.run(debug=True, port=5001)
+    print("起動: http://localhost:5001")
+    app.run(debug=True, port=5001)

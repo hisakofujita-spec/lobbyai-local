@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "buildCommand": "python3 scripts/04_indexer.py",
+  "installCommand": "pip install -r requirements.txt && python3 scripts/04_indexer.py && gzip -f -k db/minutes.db",
   "builds": [
     {
       "src": "app.py",
       "use": "@vercel/python",
       "config": {
-        "includeFiles": ["db/**", "templates/**"]
+        "includeFiles": ["db/minutes.db.gz", "templates/**"]
       }
     }
   ],
