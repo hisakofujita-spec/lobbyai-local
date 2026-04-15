@@ -8,6 +8,7 @@ survey_report.csv を読み込み、difficulty=A/B/C の自治体の議事録を
 - C: gijiroku.com / kensakusystem.jp 等の外部システムを直接APIアクセス
 """
 
+import argparse
 import csv
 import json
 import re
@@ -1126,6 +1127,19 @@ def load_survey() -> list[dict]:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="議事録スクレイパー（survey_report.csv / municipalities.csv）")
+    parser.add_argument(
+        "--start",
+        type=int,
+        default=1,
+        metavar="N",
+        help="この番号から処理する（ログの [N/合計] と同じ 1 始まり。例: 吹田で止まったら 68）",
+    )
+    args = parser.parse_args()
+    if args.start < 1:
+        print("--start は 1 以上を指定してください。", file=sys.stderr)
+        sys.exit(2)
+
     rows = load_survey()
 
     # A → B → C の順でソート
@@ -1138,6 +1152,8 @@ def main():
 
     cnt = {d: sum(1 for r in targets if r["difficulty"] == d) for d in ("A", "B", "C")}
     print(f"対象: {len(targets)} 件（A={cnt['A']}, B={cnt['B']}, C={cnt['C']}）")
+    if args.start > 1:
+        print(f"再開: --start {args.start}（{args.start} 番目から）")
     print("=" * 60)
 
     session = get_session()
@@ -1145,6 +1161,8 @@ def main():
     total_pdfs = 0
 
     for i, row in enumerate(targets, start=1):
+        if i < args.start:
+            continue
         name = row["name"]
         difficulty = row.get("difficulty", "A")
         minutes_url = row.get("minutes_url") or row.get("assembly_url", "")
