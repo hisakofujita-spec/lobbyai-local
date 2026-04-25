@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>議事録全文検索</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
   <style>
     /* ── リセット & ベース ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -327,6 +328,53 @@
       background: #fffaf0;
     }
 
+    /* ── 日本地図セクション ── */
+    #map-section {
+      max-width: 920px;
+      margin: 16px auto 0;
+      padding: 0 16px;
+    }
+    .map-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: none;
+      font-size: 0.82rem;
+      color: #4a6fa5;
+      cursor: pointer;
+      padding: 4px 0;
+      font-family: inherit;
+    }
+    .map-toggle:hover { text-decoration: underline; }
+    #map-container {
+      margin-top: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      display: none;
+    }
+    #map-container.open { display: block; }
+    #japan-map {
+      width: 100%;
+      height: 340px;
+      background: #f0f4f8;
+    }
+    #map-legend {
+      display: flex;
+      gap: 12px;
+      padding: 8px 14px;
+      font-size: 0.75rem;
+      color: #718096;
+      background: #fff;
+      border-top: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+    }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-color {
+      width: 14px; height: 14px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.15);
+    }
+
     /* ── レスポンシブ ── */
     @media (max-width: 600px) {
       header { padding: 18px 16px; }
@@ -366,6 +414,22 @@
 </div>
 
 <div id="stats-panel"></div>
+
+<div id="map-section">
+  <button class="map-toggle" onclick="toggleMap()">
+    <span id="map-toggle-icon">▼</span> 日本地図で表示
+  </button>
+  <div id="map-container" class="open">
+    <div id="japan-map"></div>
+    <div id="map-legend">
+      <span class="legend-item"><span class="legend-color" style="background:#e2e8f0"></span>データなし</span>
+      <span class="legend-item"><span class="legend-color" style="background:#bee3f8"></span>収録済み</span>
+      <span class="legend-item"><span class="legend-color" style="background:#3182ce"></span>収録件数多</span>
+      <span class="legend-item"><span class="legend-color" style="background:#fc8181;border-color:#e53e3e"></span>検索ヒット</span>
+    </div>
+  </div>
+</div>
+
 <div class="meta-bar" id="meta-bar"></div>
 <div id="results">
   <div class="state-message" id="initial-state">
@@ -374,7 +438,120 @@
   </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
+  // ── 都道府県コード → GeoJSON nam_ja マッピング ──
+  const PREF_CODE_TO_JAM = {
+    "01":"北海道","02":"青森県","03":"岩手県","04":"宮城県","05":"秋田県",
+    "06":"山形県","07":"福島県","08":"茨城県","09":"栃木県","10":"群馬県",
+    "11":"埼玉県","12":"千葉県","13":"東京都","14":"神奈川県","15":"新潟県",
+    "16":"富山県","17":"石川県","18":"福井県","19":"山梨県","20":"長野県",
+    "21":"岐阜県","22":"静岡県","23":"愛知県","24":"三重県","25":"滋賀県",
+    "26":"京都府","27":"大阪府","28":"兵庫県","29":"奈良県","30":"和歌山県",
+    "31":"鳥取県","32":"島根県","33":"岡山県","34":"広島県","35":"山口県",
+    "36":"徳島県","37":"香川県","38":"愛媛県","39":"高知県","40":"福岡県",
+    "41":"佐賀県","42":"長崎県","43":"熊本県","44":"大分県","45":"宮崎県",
+    "46":"鹿児島県","47":"沖縄県"
+  };
+  // GeoJSON nam_ja → prefecture_code の逆引き
+  const JAM_TO_CODE = {};
+  for (const [k,v] of Object.entries(PREF_CODE_TO_JAM)) JAM_TO_CODE[v] = k;
+
+  let map = null;
+  let geoLayer = null;
+  let prefStats = {};      // code → { total, municipalities }
+  let hitCodes = new Set(); // 検索ヒットした都道府県コード
+
+  // ── 色計算 ──
+  function getColor(code) {
+    if (hitCodes.size > 0 && hitCodes.has(code)) return '#e53e3e';
+    const data = prefStats[code];
+    if (!data) return '#e2e8f0';
+    const t = data.total;
+    if (t >= 10000) return '#1a56a0';
+    if (t >= 5000)  return '#2b6cb0';
+    if (t >= 2000)  return '#3182ce';
+    if (t >= 500)   return '#63b3ed';
+    return '#bee3f8';
+  }
+
+  function featureCode(feature) {
+    const nam_ja = feature.properties.nam_ja || '';
+    if (JAM_TO_CODE[nam_ja]) return JAM_TO_CODE[nam_ja];
+    // GeoJSON id フィールド (1-47 の数値) をゼロ埋め2桁コードに変換
+    const id = feature.properties.id;
+    if (id) return String(id).padStart(2, '0');
+    return '';
+  }
+
+  function featureStyle(feature) {
+    return {
+      fillColor: getColor(featureCode(feature)),
+      weight: 0.8,
+      opacity: 1,
+      color: '#fff',
+      fillOpacity: 0.85
+    };
+  }
+
+  function onEachFeature(feature, layer) {
+    const nam_ja = feature.properties.nam_ja || '';
+    const code = featureCode(feature);
+    layer.on({
+      mouseover: e => {
+        e.target.setStyle({ weight: 2, fillOpacity: 0.95 });
+        const data = prefStats[code];
+        const munis = data ? data.municipalities.map(m => `${m.name}(${m.count.toLocaleString()}件)`).join('、') : 'データなし';
+        layer.bindTooltip(`<strong>${nam_ja}</strong><br>${munis}`, {sticky: true}).openTooltip();
+      },
+      mouseout: e => { geoLayer.resetStyle(e.target); }
+    });
+  }
+
+  async function initMap() {
+    if (map) return;
+    map = L.map('japan-map', { zoomControl: true, attributionControl: false });
+    map.fitBounds([[24, 122], [46, 146]]);
+
+    // 統計取得
+    try {
+      const res = await fetch('/prefecture-stats');
+      const data = await res.json();
+      prefStats = data.by_prefecture || {};
+    } catch(e) {}
+
+    // GeoJSON取得・描画
+    try {
+      const res = await fetch('https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson');
+      const geojson = await res.json();
+      geoLayer = L.geoJSON(geojson, {
+        style: featureStyle,
+        onEachFeature: onEachFeature
+      }).addTo(map);
+    } catch(e) {
+      document.getElementById('japan-map').innerHTML =
+        '<div style="padding:40px;text-align:center;color:#a0aec0">地図の読み込みに失敗しました</div>';
+    }
+  }
+
+  function refreshMap() {
+    if (!geoLayer) return;
+    geoLayer.setStyle(featureStyle);
+  }
+
+  function toggleMap() {
+    const container = document.getElementById('map-container');
+    const icon = document.getElementById('map-toggle-icon');
+    if (container.classList.contains('open')) {
+      container.classList.remove('open');
+      icon.textContent = '▶';
+    } else {
+      container.classList.add('open');
+      icon.textContent = '▼';
+      initMap();
+    }
+  }
+
   // ── Enter キーで検索 ──
   document.getElementById('query').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') doSearch();
@@ -405,6 +582,7 @@
     } catch(e) {}
   }
   loadStats();
+  initMap(); // ページ読み込み時に地図を初期表示
 
   // ── 検索実行 ──
   async function doSearch() {
@@ -431,6 +609,8 @@
       }
 
       if (data.results.length === 0) {
+        hitCodes = new Set();
+        refreshMap();
         metaEl.innerHTML = `「<span class="keyword-tag">${escHtml(query)}</span>」の検索結果：0件`;
         resultsEl.innerHTML = `
           <div class="state-message">
@@ -439,6 +619,10 @@
           </div>`;
         return;
       }
+
+      // 地図のヒット都道府県を更新
+      hitCodes = new Set(data.results.map(r => r.prefecture_code).filter(Boolean));
+      refreshMap();
 
       metaEl.innerHTML = `「<span class="keyword-tag">${escHtml(query)}</span>」の検索結果：<strong>${data.results.length}</strong>件`;
 

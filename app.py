@@ -6,6 +6,7 @@ app.py - 議事録全文検索 Web アプリ (Flask)
 アクセス: http://localhost:5000
 """
 
+import csv
 import gzip
 import os
 import re
@@ -22,6 +23,20 @@ app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_LIMIT = 50
 SNIPPET_WINDOW = 120  # キーワード前後の文字数
+
+# 自治体名 → 都道府県コード（municipalities.csv から読み込み）
+_MUNI_CODE_MAP: dict[str, str] = {}
+
+def _load_muni_map():
+    csv_path = os.path.join(BASE_DIR, "data", "municipalities.csv")
+    if not os.path.exists(csv_path):
+        return
+    with open(csv_path, encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            _MUNI_CODE_MAP[row["name"]] = row["prefecture_code"]
+
+_load_muni_map()
 
 # DB パス候補
 _DB_LOCAL = os.path.join(BASE_DIR, "db", "minutes.db")
@@ -198,6 +213,7 @@ def search():
         results.append(
             {
                 "municipality_name": row["municipality_name"],
+                "prefecture_code": _MUNI_CODE_MAP.get(row["municipality_name"], ""),
                 "meeting_name": row["meeting_name"] or "—",
                 "meeting_date": row["meeting_date"] or "—",
                 "speaker": row["speaker"] or "—",
@@ -209,6 +225,37 @@ def search():
         )
 
     return jsonify({"results": results, "total": len(results), "query": query})
+
+
+@app.route("/prefecture-stats")
+def prefecture_stats():
+    try:
+        conn = get_conn()
+    except Exception as e:
+        return jsonify({"error": str(e), "by_prefecture": {}})
+
+    try:
+        rows = conn.execute(
+            "SELECT municipality_name, COUNT(*) as cnt FROM minutes GROUP BY municipality_name"
+        ).fetchall()
+    except Exception as e:
+        return jsonify({"error": str(e), "by_prefecture": {}})
+    finally:
+        conn.close()
+
+    by_prefecture: dict[str, dict] = {}
+    for row in rows:
+        code = _MUNI_CODE_MAP.get(row["municipality_name"], "")
+        if not code:
+            continue
+        if code not in by_prefecture:
+            by_prefecture[code] = {"total": 0, "municipalities": []}
+        by_prefecture[code]["total"] += row["cnt"]
+        by_prefecture[code]["municipalities"].append(
+            {"name": row["municipality_name"], "count": row["cnt"]}
+        )
+
+    return jsonify({"by_prefecture": by_prefecture})
 
 
 @app.route("/stats")
