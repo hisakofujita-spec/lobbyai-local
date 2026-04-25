@@ -317,16 +317,32 @@
       color: #2b6cb0;
       border-color: #bee3f8;
     }
-    .chip-byoji:hover {
-      background: #ebf4ff;
-    }
+    .chip-byoji:hover { background: #ebf4ff; }
     .chip-sango {
       color: #744210;
       border-color: #fbd38d;
     }
-    .chip-sango:hover {
-      background: #fffaf0;
+    .chip-sango:hover { background: #fffaf0; }
+    .chip-hoiku {
+      color: #276749;
+      border-color: #9ae6b4;
     }
+    .chip-hoiku:hover { background: #f0fff4; }
+    .chip-kosodatesien {
+      color: #553c9a;
+      border-color: #d6bcfa;
+    }
+    .chip-kosodatesien:hover { background: #faf5ff; }
+    .chip-boshi {
+      color: #97266d;
+      border-color: #fbb6ce;
+    }
+    .chip-boshi:hover { background: #fff5f7; }
+    .chip-funin {
+      color: #c05621;
+      border-color: #fbd38d;
+    }
+    .chip-funin:hover { background: #fffaf0; }
 
     /* ── 日本地図セクション ── */
     #map-section {
@@ -409,6 +425,40 @@
     <div class="keyword-chips-group">
       <button class="chip chip-sango" onclick="searchChip('産後ケア')">産後ケア</button>
       <button class="chip chip-sango" onclick="searchChip('産後ケア事業')">産後ケア事業</button>
+      <button class="chip chip-sango" onclick="searchChip('産後ヘルパー')">産後ヘルパー</button>
+      <button class="chip chip-sango" onclick="searchChip('産前産後支援')">産前産後支援</button>
+    </div>
+    <div class="keyword-chips-label">保育</div>
+    <div class="keyword-chips-group">
+      <button class="chip chip-hoiku" onclick="searchChip('待機児童')">待機児童</button>
+      <button class="chip chip-hoiku" onclick="searchChip('認可保育所')">認可保育所</button>
+      <button class="chip chip-hoiku" onclick="searchChip('認定こども園')">認定こども園</button>
+      <button class="chip chip-hoiku" onclick="searchChip('小規模保育')">小規模保育</button>
+      <button class="chip chip-hoiku" onclick="searchChip('一時保育')">一時保育</button>
+      <button class="chip chip-hoiku" onclick="searchChip('学童保育')">学童保育</button>
+    </div>
+    <div class="keyword-chips-label">子育て支援</div>
+    <div class="keyword-chips-group">
+      <button class="chip chip-kosodatesien" onclick="searchChip('子育て支援')">子育て支援</button>
+      <button class="chip chip-kosodatesien" onclick="searchChip('ファミリーサポート')">ファミリーサポート</button>
+      <button class="chip chip-kosodatesien" onclick="searchChip('子育て世代包括支援')">子育て世代包括支援</button>
+      <button class="chip chip-kosodatesien" onclick="searchChip('こども家庭センター')">こども家庭センター</button>
+      <button class="chip chip-kosodatesien" onclick="searchChip('児童手当')">児童手当</button>
+    </div>
+    <div class="keyword-chips-label">母子保健</div>
+    <div class="keyword-chips-group">
+      <button class="chip chip-boshi" onclick="searchChip('妊婦健診')">妊婦健診</button>
+      <button class="chip chip-boshi" onclick="searchChip('乳幼児健診')">乳幼児健診</button>
+      <button class="chip chip-boshi" onclick="searchChip('産後うつ')">産後うつ</button>
+      <button class="chip chip-boshi" onclick="searchChip('母子手帳')">母子手帳</button>
+      <button class="chip chip-boshi" onclick="searchChip('新生児訪問')">新生児訪問</button>
+    </div>
+    <div class="keyword-chips-label">不妊・不育</div>
+    <div class="keyword-chips-group">
+      <button class="chip chip-funin" onclick="searchChip('不妊治療')">不妊治療</button>
+      <button class="chip chip-funin" onclick="searchChip('不育症')">不育症</button>
+      <button class="chip chip-funin" onclick="searchChip('体外受精')">体外受精</button>
+      <button class="chip chip-funin" onclick="searchChip('不妊相談')">不妊相談</button>
     </div>
   </div>
 </div>
