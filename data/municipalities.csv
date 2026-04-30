@@ -50,7 +50,7 @@ prefecture_code,name,category,population,assembly_url,minutes_url,notes
 04,仙台市,designated_city,109,https://www.city.sendai.jp/gikai/,https://www.city.sendai.miyagi.dbsr.jp/index.php/,DB-Searchシステム
 11,さいたま市,designated_city,134,https://www.city.saitama.lg.jp/001/010/,https://ssp.kaigiroku.net/tenant/saitama/SpTop.html,kaigirokuシステム
 12,千葉市,designated_city,98,https://www.city.chiba.lg.jp/shigikai/,https://www.city.chiba.chiba.dbsr.jp/index.php/,DB-Searchシステム
-14,横浜市,designated_city,377,https://www.city.yokohama.lg.jp/city-info/zaisei/gikai/,http://giji.city.yokohama.lg.jp/tenant/yokohama/SpTop.html,kaigirokuシステム（独自ドメイン）
+14,横浜市,designated_city,377,https://www.city.yokohama.lg.jp/city-info/zaisei/gikai/,http://giji.city.yokohama.lg.jp/tenant/yokohama/SpTop.html,kaigirokuシステム（giji.city.yokohama.lg.jp）
 14,川崎市,designated_city,154,https://www.city.kawasaki.jp/gikai/,https://www13.gijiroku.com/kawasaki_council/,gijirokuシステム
 14,相模原市,designated_city,73,https://www.city.sagamihara.kanagawa.jp/gikai/,https://ssp.kaigiroku.net/tenant/sagamihara/SpTop.html,kaigirokuシステム
 15,新潟市,designated_city,77,https://www.city.niigata.lg.jp/gikai/,http://www06.gijiroku.com/niigata/,gijirokuシステム
@@ -63,7 +63,7 @@ prefecture_code,name,category,population,assembly_url,minutes_url,notes
 28,神戸市,designated_city,152,https://www.city.kobe.lg.jp/gikai/,https://www.city.kobe.hyogo.dbsr.jp/,DB-Searchシステム
 33,岡山市,designated_city,72,https://www.city.okayama.jp/gikai/,https://ssp.kaigiroku.net/tenant/okayama/SpTop.html,kaigirokuシステム
 34,広島市,designated_city,119,https://www.city.hiroshima.lg.jp/gikai/,https://www.city.hiroshima.dbsr.jp/,DB-Searchシステム
-40,北九州市,designated_city,93,https://www.city.kitakyushu.lg.jp/gikai/,https://www.city.kitakyushu.dbsr.jp/,DB-Searchシステム
+40,北九州市,designated_city,93,https://www.city.kitakyushu.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/kitakyushu/SpTop.html,kaigirokuシステム
 40,福岡市,designated_city,162,https://www.city.fukuoka.lg.jp/gikai/,https://www.city.fukuoka.fukuoka.dbsr.jp/index.php/,DB-Searchシステム
 43,熊本市,designated_city,74,https://www.city.kumamoto.jp/gikai/,http://kumamoto.gijiroku.com/voices/,gijirokuシステム
 01,函館市,core_city,25,https://www.city.hakodate.hokkaido.jp/docs/gikai/,https://ssp.kaigiroku.net/tenant/hakodate/SpTop.html,kaigirokuシステム
@@ -89,7 +89,7 @@ prefecture_code,name,category,population,assembly_url,minutes_url,notes
 15,長岡市,core_city,26,https://www.city.nagaoka.niigata.jp/gikai/,https://ssp.kaigiroku.net/tenant/nagaoka/SpTop.html,kaigirokuシステム
 16,富山市,core_city,41,https://www.city.toyama.lg.jp/gikai/,https://www.city.toyama.dbsr.jp/,DB-Searchシステム
 17,金沢市,core_city,46,https://www.city.kanazawa.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/kanazawa/SpTop.html,kaigirokuシステム
-18,福井市,core_city,26,https://www.city.fukui.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/fukuicty/SpTop.html,kaigirokuシステム
+18,福井市,core_city,26,https://www.city.fukui.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/fukui/SpTop.html,kaigirokuシステム
 19,甲府市,core_city,19,https://www.city.kofu.yamanashi.jp/gikai/,https://ssp.kaigiroku.net/tenant/kofu/SpTop.html,kaigirokuシステム
 20,長野市,core_city,37,https://www.city.nagano.nagano.jp/gikai/,https://ssp.kaigiroku.net/tenant/nagano/SpTop.html,kaigirokuシステム
 20,松本市,core_city,24,https://www.city.matsumoto.nagano.jp/gikai/,https://ssp.kaigiroku.net/tenant/matsumoto/SpTop.html,kaigirokuシステム
@@ -110,7 +110,7 @@ prefecture_code,name,category,population,assembly_url,minutes_url,notes
 28,西宮市,core_city,49,https://www.city.nishinomiya.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/nishinomiya/SpTop.html,kaigirokuシステム
 28,明石市,core_city,30,https://www.city.akashi.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/akashi/SpTop.html,kaigirokuシステム
 29,奈良市,core_city,36,https://www.city.nara.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/nara/SpTop.html,kaigirokuシステム
-30,和歌山市,core_city,36,https://www.city.wakayama.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/wakayamacity/SpTop.html,kaigirokuシステム
+30,和歌山市,core_city,36,https://www.city.wakayama.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/wakayama/SpTop.html,kaigirokuシステム
 31,鳥取市,core_city,19,https://www.city.tottori.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/tottori/SpTop.html,kaigirokuシステム
 32,松江市,core_city,20,https://www.city.matsue.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/matsue/SpTop.html,kaigirokuシステム
 33,倉敷市,core_city,47,https://www.city.kurashiki.okayama.jp/gikai/,https://ssp.kaigiroku.net/tenant/kurashiki/SpTop.html,kaigirokuシステム
@@ -126,7 +126,7 @@ prefecture_code,name,category,population,assembly_url,minutes_url,notes
 42,佐世保市,core_city,25,https://www.city.sasebo.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/sasebo/SpTop.html,kaigirokuシステム
 44,大分市,core_city,48,https://www.city.oita.oita.jp/gikai/,https://ssp.kaigiroku.net/tenant/oitacity/SpTop.html,kaigirokuシステム
 45,宮崎市,core_city,40,https://www.city.miyazaki.miyazaki.jp/gikai/,https://ssp.kaigiroku.net/tenant/miyazakicity/SpTop.html,kaigirokuシステム
-46,鹿児島市,core_city,60,https://www.city.kagoshima.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/kagoshimacity/SpTop.html,kaigirokuシステム
+46,鹿児島市,core_city,60,https://www.city.kagoshima.lg.jp/gikai/,https://ssp.kaigiroku.net/tenant/kagoshima/SpTop.html,kaigirokuシステム
 47,那覇市,core_city,32,https://www.city.naha.okinawa.jp/gikai/,https://ssp.kaigiroku.net/tenant/naha/SpTop.html,kaigirokuシステム
 13,八王子市,large_city,58,https://www.city.hachioji.tokyo.jp/gikai/,https://ssp.kaigiroku.net/tenant/hachioji/SpTop.html,kaigirokuシステム
 13,町田市,large_city,43,https://www.city.machida.tokyo.jp/gikai/,https://ssp.kaigiroku.net/tenant/machida/SpTop.html,kaigirokuシステム

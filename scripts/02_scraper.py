@@ -78,7 +78,7 @@ SSP_SITES = {
     "藤沢市":   "fujisawa",
     "長岡市":   "nagaoka",
     "金沢市":   "kanazawa",
-    "福井市":   "fukuicty",
+    "福井市":   "fukui",
     "甲府市":   "kofu",
     "長野市":   "nagano",
     "松本市":   "matsumoto",
@@ -99,7 +99,7 @@ SSP_SITES = {
     "西宮市":   "nishinomiya",
     "明石市":   "akashi",
     "奈良市":   "nara",
-    "和歌山市": "wakayamacity",
+    "和歌山市": "wakayama",
     "鳥取市":   "tottori",
     "松江市":   "matsue",
     "倉敷市":   "kurashiki",
@@ -114,7 +114,7 @@ SSP_SITES = {
     "佐世保市": "sasebo",
     "大分市":   "oitacity",
     "宮崎市":   "miyazakicity",
-    "鹿児島市": "kagoshimacity",
+    "鹿児島市": "kagoshima",
     "那覇市":   "naha",
     "八王子市": "hachioji",
     "町田市":   "machida",
@@ -135,6 +135,13 @@ SSP_SITES = {
     "加古川市": "kakogawa",
     "東広島市": "higashihiroshima",
     "沖縄市":   "okinawacity",
+    "北九州市": "kitakyushu",
+    "横浜市":   "yokohama",
+}
+
+# 標準ドメインと異なるテナントのAPIベースURL
+SSP_CUSTOM_API_BASE = {
+    "yokohama": "http://giji.city.yokohama.lg.jp/dnp/search",
 }
 
 SSP_API_BASE = "https://ssp.kaigiroku.net/dnp/search"
@@ -838,9 +845,10 @@ def scrape_gijiroku(session, name: str, minutes_url: str) -> list[dict]:
     return all_records
 
 
-def _ssp_post(session, endpoint: str, data: dict) -> dict:
-    """ssp.kaigiroku.net の REST API に POST する。"""
-    url = f"{SSP_API_BASE}/{endpoint}"
+def _ssp_post(session, endpoint: str, data: dict, api_base: str = None) -> dict:
+    """ssp.kaigiroku.net (またはカスタムドメイン) の REST API に POST する。"""
+    base = api_base or SSP_API_BASE
+    url = f"{base}/{endpoint}"
     try:
         resp = session.post(
             url, data=data,
@@ -859,10 +867,16 @@ def scrape_ssp_kaigiroku(session, name: str, slug: str) -> list[dict]:
     ssp.kaigiroku.net テナントをスクレイピングして発言レコードを返す。
     REST API: /dnp/search/councils/index → /minutes/get_schedule → /minutes/get_minute
     """
-    print(f"  [ssp.kaigiroku.net] tenant={slug}")
+    api_base = SSP_CUSTOM_API_BASE.get(slug)
+    if api_base:
+        domain = api_base.split("/dnp/")[0]
+        print(f"  [kaigiroku:{domain}] tenant={slug}")
+        tid_url = f"{domain}/tenant/{slug}/js/tenant.js"
+    else:
+        print(f"  [ssp.kaigiroku.net] tenant={slug}")
+        tid_url = f"https://ssp.kaigiroku.net/tenant/{slug}/js/tenant.js"
 
     # tenant_id を取得
-    tid_url = f"https://ssp.kaigiroku.net/tenant/{slug}/js/tenant.js"
     _, content = fetch(session, tid_url)
     tid_text = content.decode("utf-8", errors="replace")
     tid_m = re.search(r"tenant_id\s*=\s*(\d+)", tid_text)
@@ -872,9 +886,15 @@ def scrape_ssp_kaigiroku(session, name: str, slug: str) -> list[dict]:
     tenant_id = int(tid_m.group(1))
     print(f"  tenant_id={tenant_id}")
 
+    # ドメイン設定（カスタムドメインまたは標準）
+    if api_base:
+        site_domain = api_base.split("/dnp/")[0]
+    else:
+        site_domain = "https://ssp.kaigiroku.net"
+
     # 会議一覧を取得
     time.sleep(SLEEP_BETWEEN_REQUESTS)
-    councils_data = _ssp_post(session, "councils/index", {"tenant_id": tenant_id})
+    councils_data = _ssp_post(session, "councils/index", {"tenant_id": tenant_id}, api_base)
     councils = []
     for c in councils_data.get("councils", []):
         for vy in c.get("view_years", []):
@@ -907,6 +927,7 @@ def scrape_ssp_kaigiroku(session, name: str, slug: str) -> list[dict]:
         sched_data = _ssp_post(
             session, "minutes/get_schedule",
             {"tenant_id": tenant_id, "council_id": council_id},
+            api_base,
         )
         schedules = sched_data.get("council_schedules", [])
 
@@ -928,11 +949,12 @@ def scrape_ssp_kaigiroku(session, name: str, slug: str) -> list[dict]:
             min_data = _ssp_post(
                 session, "minutes/get_minute",
                 {"tenant_id": tenant_id, "council_id": council_id, "schedule_id": schedule_id},
+                api_base,
             )
             minutes_list = min_data.get("tenant_minutes", [])
 
             source_base = (
-                f"https://ssp.kaigiroku.net/tenant/{slug}/SpMinuteView.html"
+                f"{site_domain}/tenant/{slug}/SpMinuteView.html"
                 f"?council_id={council_id}&schedule_id={schedule_id}"
             )
 
@@ -1209,7 +1231,7 @@ def main():
                 records = []
                 if "gijiroku.com" in minutes_url or name in GIJIROKU_SITES:
                     records = scrape_gijiroku(session, name, minutes_url)
-                elif "ssp.kaigiroku.net" in minutes_url or name in SSP_SITES:
+                elif "ssp.kaigiroku.net" in minutes_url or "giji.city.yokohama.lg.jp" in minutes_url or name in SSP_SITES:
                     slug = SSP_SITES.get(name)
                     if not slug:
                         # URL から slug を推測: /tenant/{slug}/SpTop.html

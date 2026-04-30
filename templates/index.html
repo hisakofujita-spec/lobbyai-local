@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>議事録全文検索</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
   <style>
     /* ── リセット & ベース ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -313,36 +312,26 @@
       font-family: inherit;
       background: #fff;
     }
-    .chip-byoji {
-      color: #2b6cb0;
-      border-color: #bee3f8;
-    }
+    .chip-byoji    { color: #2b6cb0; border-color: #bee3f8; }
     .chip-byoji:hover { background: #ebf4ff; }
-    .chip-sango {
-      color: #744210;
-      border-color: #fbd38d;
-    }
+    .chip-sango    { color: #744210; border-color: #fbd38d; }
     .chip-sango:hover { background: #fffaf0; }
-    .chip-hoiku {
-      color: #276749;
-      border-color: #9ae6b4;
-    }
+    .chip-hoiku    { color: #276749; border-color: #9ae6b4; }
     .chip-hoiku:hover { background: #f0fff4; }
-    .chip-kosodatesien {
-      color: #553c9a;
-      border-color: #d6bcfa;
-    }
+    .chip-kosodatesien { color: #553c9a; border-color: #d6bcfa; }
     .chip-kosodatesien:hover { background: #faf5ff; }
-    .chip-boshi {
-      color: #97266d;
-      border-color: #fbb6ce;
-    }
+    .chip-boshi    { color: #97266d; border-color: #fbb6ce; }
     .chip-boshi:hover { background: #fff5f7; }
-    .chip-funin {
-      color: #c05621;
-      border-color: #fbd38d;
-    }
+    .chip-funin    { color: #c05621; border-color: #fbd38d; }
     .chip-funin:hover { background: #fffaf0; }
+    .chip-shogai   { color: #234e52; border-color: #81e6d9; }
+    .chip-shogai:hover { background: #e6fffa; }
+    .chip-hitori   { color: #702459; border-color: #fed7e2; }
+    .chip-hitori:hover { background: #fff5f7; }
+    .chip-shoshika { color: #2d3a8c; border-color: #c3cfe2; }
+    .chip-shoshika:hover { background: #ebf0ff; }
+    .chip-ibasho   { color: #7b4f12; border-color: #f6c47e; }
+    .chip-ibasho:hover { background: #fffbf0; }
 
     /* ── 日本地図セクション ── */
     #map-section {
@@ -363,21 +352,41 @@
       font-family: inherit;
     }
     .map-toggle:hover { text-decoration: underline; }
+
     #map-container {
       margin-top: 10px;
       border: 1px solid #e2e8f0;
       border-radius: 10px;
       overflow: hidden;
       display: none;
+      background: #f8fafc;
     }
     #map-container.open { display: block; }
+
     #japan-map {
       width: 100%;
-      height: 340px;
+      min-height: 280px;
       background: #f0f4f8;
+      position: relative;
     }
+    #japan-map svg { display: block; }
+
+    /* SVG prefecture paths */
+    .pref-path {
+      transition: fill 0.25s ease;
+    }
+    .pref-path:hover {
+      filter: brightness(0.88);
+    }
+    .pref-active {
+      stroke: #2b6cb0 !important;
+      stroke-width: 2px !important;
+      filter: brightness(0.85);
+    }
+
     #map-legend {
       display: flex;
+      align-items: center;
       gap: 12px;
       padding: 8px 14px;
       font-size: 0.75rem;
@@ -388,8 +397,51 @@
     }
     .legend-item { display: flex; align-items: center; gap: 4px; }
     .legend-color {
-      width: 14px; height: 14px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.15);
+      width: 14px; height: 14px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.12);
+      flex-shrink: 0;
     }
+    .map-hint {
+      margin-left: auto;
+      color: #a0aec0;
+      font-size: 0.72rem;
+    }
+
+    /* ── 地図ツールチップ ── */
+    #map-tooltip {
+      position: fixed;
+      background: rgba(26, 26, 46, 0.94);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 7px;
+      font-size: 0.8rem;
+      pointer-events: none;
+      display: none;
+      z-index: 9999;
+      max-width: 240px;
+      line-height: 1.55;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    #map-tooltip strong { font-size: 0.88rem; }
+
+    /* 都道府県フィルターバッジ */
+    #pref-filter-badge {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: #ebf4ff;
+      border: 1px solid #bee3f8;
+      border-radius: 20px;
+      padding: 3px 10px 3px 12px;
+      font-size: 0.78rem;
+      color: #2b6cb0;
+    }
+    #pref-filter-badge.active { display: inline-flex; }
+    #pref-filter-badge button {
+      background: none; border: none; cursor: pointer;
+      color: #718096; font-size: 0.85rem; padding: 0 2px; line-height: 1;
+    }
+    #pref-filter-badge button:hover { color: #e53e3e; }
 
     /* ── レスポンシブ ── */
     @media (max-width: 600px) {
@@ -398,6 +450,7 @@
       .search-row button { padding: 11px 16px; }
       .card-header { flex-wrap: wrap; }
       .score-area { flex-direction: row; min-width: auto; }
+      .map-hint { display: none; }
     }
   </style>
 </head>
@@ -413,6 +466,9 @@
     <input type="text" id="query" placeholder="キーワードを入力（例：病児保育、産後ケア）" autofocus>
     <button id="search-btn" onclick="doSearch()">検索</button>
   </div>
+</div>
+
+<div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 32px 14px;">
   <div class="keyword-chips">
     <div class="keyword-chips-label">病児保育</div>
     <div class="keyword-chips-group">
@@ -420,6 +476,7 @@
       <button class="chip chip-byoji" onclick="searchChip('病児保育室')">病児保育室</button>
       <button class="chip chip-byoji" onclick="searchChip('病後児保育')">病後児保育</button>
       <button class="chip chip-byoji" onclick="searchChip('病児・病後児保育')">病児・病後児保育</button>
+      <button class="chip chip-byoji" onclick="searchChip('訪問型病児保育')">訪問型病児保育</button>
     </div>
     <div class="keyword-chips-label">産後ケア</div>
     <div class="keyword-chips-group">
@@ -427,6 +484,10 @@
       <button class="chip chip-sango" onclick="searchChip('産後ケア事業')">産後ケア事業</button>
       <button class="chip chip-sango" onclick="searchChip('産後ヘルパー')">産後ヘルパー</button>
       <button class="chip chip-sango" onclick="searchChip('産前産後支援')">産前産後支援</button>
+      <button class="chip chip-sango" onclick="searchChip('宿泊型産後ケア')">宿泊型産後ケア</button>
+      <button class="chip chip-sango" onclick="searchChip('産後ドゥーラ')">産後ドゥーラ</button>
+      <button class="chip chip-sango" onclick="searchChip('産前ケア')">産前ケア</button>
+      <button class="chip chip-sango" onclick="searchChip('産後パパ育休')">産後パパ育休</button>
     </div>
     <div class="keyword-chips-label">保育</div>
     <div class="keyword-chips-group">
@@ -436,6 +497,14 @@
       <button class="chip chip-hoiku" onclick="searchChip('小規模保育')">小規模保育</button>
       <button class="chip chip-hoiku" onclick="searchChip('一時保育')">一時保育</button>
       <button class="chip chip-hoiku" onclick="searchChip('学童保育')">学童保育</button>
+      <button class="chip chip-hoiku" onclick="searchChip('家庭的保育')">家庭的保育</button>
+      <button class="chip chip-hoiku" onclick="searchChip('企業主導型保育')">企業主導型保育</button>
+      <button class="chip chip-hoiku" onclick="searchChip('保育料')">保育料</button>
+      <button class="chip chip-hoiku" onclick="searchChip('幼児教育無償化')">幼児教育無償化</button>
+      <button class="chip chip-hoiku" onclick="searchChip('延長保育')">延長保育</button>
+      <button class="chip chip-hoiku" onclick="searchChip('休日保育')">休日保育</button>
+      <button class="chip chip-hoiku" onclick="searchChip('送迎保育ステーション')">送迎保育ステーション</button>
+      <button class="chip chip-hoiku" onclick="searchChip('保育士不足')">保育士不足</button>
     </div>
     <div class="keyword-chips-label">子育て支援</div>
     <div class="keyword-chips-group">
@@ -444,6 +513,12 @@
       <button class="chip chip-kosodatesien" onclick="searchChip('子育て世代包括支援')">子育て世代包括支援</button>
       <button class="chip chip-kosodatesien" onclick="searchChip('こども家庭センター')">こども家庭センター</button>
       <button class="chip chip-kosodatesien" onclick="searchChip('児童手当')">児童手当</button>
+      <button class="chip chip-kosodatesien" onclick="searchChip('子育てひろば')">子育てひろば</button>
+      <button class="chip chip-kosodatesien" onclick="searchChip('地域子育て支援拠点')">地域子育て支援拠点</button>
+      <button class="chip chip-kosodatesien" onclick="searchChip('育児不安')">育児不安</button>
+      <button class="chip chip-kosodatesien" onclick="searchChip('ネウボラ')">ネウボラ</button>
+      <button class="chip chip-kosodatesien" onclick="searchChip('育児支援ヘルパー')">育児支援ヘルパー</button>
+      <button class="chip chip-kosodatesien" onclick="searchChip('一時預かり')">一時預かり</button>
     </div>
     <div class="keyword-chips-label">母子保健</div>
     <div class="keyword-chips-group">
@@ -452,6 +527,11 @@
       <button class="chip chip-boshi" onclick="searchChip('産後うつ')">産後うつ</button>
       <button class="chip chip-boshi" onclick="searchChip('母子手帳')">母子手帳</button>
       <button class="chip chip-boshi" onclick="searchChip('新生児訪問')">新生児訪問</button>
+      <button class="chip chip-boshi" onclick="searchChip('産婦健診')">産婦健診</button>
+      <button class="chip chip-boshi" onclick="searchChip('養育支援訪問')">養育支援訪問</button>
+      <button class="chip chip-boshi" onclick="searchChip('特定妊婦')">特定妊婦</button>
+      <button class="chip chip-boshi" onclick="searchChip('こんにちは赤ちゃん')">こんにちは赤ちゃん</button>
+      <button class="chip chip-boshi" onclick="searchChip('妊産婦支援')">妊産婦支援</button>
     </div>
     <div class="keyword-chips-label">不妊・不育</div>
     <div class="keyword-chips-group">
@@ -459,6 +539,51 @@
       <button class="chip chip-funin" onclick="searchChip('不育症')">不育症</button>
       <button class="chip chip-funin" onclick="searchChip('体外受精')">体外受精</button>
       <button class="chip chip-funin" onclick="searchChip('不妊相談')">不妊相談</button>
+      <button class="chip chip-funin" onclick="searchChip('男性不妊')">男性不妊</button>
+      <button class="chip chip-funin" onclick="searchChip('不妊助成')">不妊助成</button>
+      <button class="chip chip-funin" onclick="searchChip('卵子凍結')">卵子凍結</button>
+      <button class="chip chip-funin" onclick="searchChip('着床前診断')">着床前診断</button>
+    </div>
+    <div class="keyword-chips-label">障害児支援</div>
+    <div class="keyword-chips-group">
+      <button class="chip chip-shogai" onclick="searchChip('放課後等デイサービス')">放課後等デイサービス</button>
+      <button class="chip chip-shogai" onclick="searchChip('児童発達支援')">児童発達支援</button>
+      <button class="chip chip-shogai" onclick="searchChip('障害児通所')">障害児通所</button>
+      <button class="chip chip-shogai" onclick="searchChip('医療的ケア児')">医療的ケア児</button>
+      <button class="chip chip-shogai" onclick="searchChip('発達障害')">発達障害</button>
+      <button class="chip chip-shogai" onclick="searchChip('療育')">療育</button>
+      <button class="chip chip-shogai" onclick="searchChip('保育所等訪問支援')">保育所等訪問支援</button>
+      <button class="chip chip-shogai" onclick="searchChip('特別支援教育')">特別支援教育</button>
+    </div>
+    <div class="keyword-chips-label">ひとり親・経済支援</div>
+    <div class="keyword-chips-group">
+      <button class="chip chip-hitori" onclick="searchChip('ひとり親')">ひとり親</button>
+      <button class="chip chip-hitori" onclick="searchChip('母子家庭')">母子家庭</button>
+      <button class="chip chip-hitori" onclick="searchChip('養育費')">養育費</button>
+      <button class="chip chip-hitori" onclick="searchChip('子ども医療費')">子ども医療費</button>
+      <button class="chip chip-hitori" onclick="searchChip('育児休業')">育児休業</button>
+      <button class="chip chip-hitori" onclick="searchChip('児童扶養手当')">児童扶養手当</button>
+      <button class="chip chip-hitori" onclick="searchChip('就学援助')">就学援助</button>
+      <button class="chip chip-hitori" onclick="searchChip('子どもの貧困')">子どもの貧困</button>
+    </div>
+    <div class="keyword-chips-label">少子化対策</div>
+    <div class="keyword-chips-group">
+      <button class="chip chip-shoshika" onclick="searchChip('少子化対策')">少子化対策</button>
+      <button class="chip chip-shoshika" onclick="searchChip('合計特殊出生率')">合計特殊出生率</button>
+      <button class="chip chip-shoshika" onclick="searchChip('移住定住')">移住定住</button>
+      <button class="chip chip-shoshika" onclick="searchChip('結婚支援')">結婚支援</button>
+      <button class="chip chip-shoshika" onclick="searchChip('第3子以降')">第3子以降</button>
+      <button class="chip chip-shoshika" onclick="searchChip('こどもまんなか')">こどもまんなか</button>
+      <button class="chip chip-shoshika" onclick="searchChip('こども計画')">こども計画</button>
+    </div>
+    <div class="keyword-chips-label">こどもの居場所</div>
+    <div class="keyword-chips-group">
+      <button class="chip chip-ibasho" onclick="searchChip('子ども食堂')">子ども食堂</button>
+      <button class="chip chip-ibasho" onclick="searchChip('学習支援')">学習支援</button>
+      <button class="chip chip-ibasho" onclick="searchChip('居場所づくり')">居場所づくり</button>
+      <button class="chip chip-ibasho" onclick="searchChip('児童館')">児童館</button>
+      <button class="chip chip-ibasho" onclick="searchChip('放課後子ども教室')">放課後子ども教室</button>
+      <button class="chip chip-ibasho" onclick="searchChip('フードバンク')">フードバンク</button>
     </div>
   </div>
 </div>
@@ -470,17 +595,27 @@
     <span id="map-toggle-icon">▼</span> 日本地図で表示
   </button>
   <div id="map-container" class="open">
-    <div id="japan-map"></div>
+    <div id="japan-map">
+      <div style="display:flex;align-items:center;justify-content:center;height:280px;gap:12px;color:#a0aec0;font-size:0.88rem">
+        <div class="spinner" style="margin:0;width:24px;height:24px;border-width:3px"></div>地図を読み込み中…
+      </div>
+    </div>
     <div id="map-legend">
       <span class="legend-item"><span class="legend-color" style="background:#e2e8f0"></span>データなし</span>
-      <span class="legend-item"><span class="legend-color" style="background:#bee3f8"></span>収録済み</span>
-      <span class="legend-item"><span class="legend-color" style="background:#3182ce"></span>収録件数多</span>
-      <span class="legend-item"><span class="legend-color" style="background:#fc8181;border-color:#e53e3e"></span>検索ヒット</span>
+      <span class="legend-item"><span class="legend-color" style="background:#bee3f8"></span>収録少</span>
+      <span class="legend-item"><span class="legend-color" style="background:#3182ce"></span>収録多</span>
+      <span class="legend-item"><span class="legend-color" style="background:#e53e3e;border-color:#c53030"></span>検索ヒット</span>
+      <span class="map-hint">都道府県をクリックで絞り込み</span>
     </div>
   </div>
 </div>
 
-<div class="meta-bar" id="meta-bar"></div>
+<div class="meta-bar" id="meta-bar">
+  <span id="pref-filter-badge">
+    <span id="pref-filter-name"></span>
+    <button onclick="clearPrefFilter()" title="絞り込みを解除">✕</button>
+  </span>
+</div>
 <div id="results">
   <div class="state-message" id="initial-state">
     <div class="icon">📋</div>
@@ -488,9 +623,12 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<!-- 地図ツールチップ -->
+<div id="map-tooltip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
-  // ── 都道府県コード → GeoJSON nam_ja マッピング ──
+  // ── 都道府県コード → 日本語名 ──
   const PREF_CODE_TO_JAM = {
     "01":"北海道","02":"青森県","03":"岩手県","04":"宮城県","05":"秋田県",
     "06":"山形県","07":"福島県","08":"茨城県","09":"栃木県","10":"群馬県",
@@ -503,20 +641,26 @@
     "41":"佐賀県","42":"長崎県","43":"熊本県","44":"大分県","45":"宮崎県",
     "46":"鹿児島県","47":"沖縄県"
   };
-  // GeoJSON nam_ja → prefecture_code の逆引き
   const JAM_TO_CODE = {};
-  for (const [k,v] of Object.entries(PREF_CODE_TO_JAM)) JAM_TO_CODE[v] = k;
+  for (const [k, v] of Object.entries(PREF_CODE_TO_JAM)) JAM_TO_CODE[v] = k;
 
-  let map = null;
-  let geoLayer = null;
-  let prefStats = {};      // code → { total, municipalities }
-  let hitCodes = new Set(); // 検索ヒットした都道府県コード
+  // ── 状態 ──
+  let svgMap      = null;
+  let d3PathGroup = null;
+  let prefStats   = {};
+  let hitCodes    = new Set();
+  let allResults  = [];
+  let lastQuery   = '';
+  let activePrefCode = null;
+
+  const MAP_W = 900;
+  const MAP_H = 320;
 
   // ── 色計算 ──
   function getColor(code) {
     if (hitCodes.size > 0 && hitCodes.has(code)) return '#e53e3e';
     const data = prefStats[code];
-    if (!data) return '#e2e8f0';
+    if (!data) return '#dde3ec';
     const t = data.total;
     if (t >= 10000) return '#1a56a0';
     if (t >= 5000)  return '#2b6cb0';
@@ -528,70 +672,182 @@
   function featureCode(feature) {
     const nam_ja = feature.properties.nam_ja || '';
     if (JAM_TO_CODE[nam_ja]) return JAM_TO_CODE[nam_ja];
-    // GeoJSON id フィールド (1-47 の数値) をゼロ埋め2桁コードに変換
     const id = feature.properties.id;
     if (id) return String(id).padStart(2, '0');
     return '';
   }
 
-  function featureStyle(feature) {
-    return {
-      fillColor: getColor(featureCode(feature)),
-      weight: 0.8,
-      opacity: 1,
-      color: '#fff',
-      fillOpacity: 0.85
-    };
-  }
-
-  function onEachFeature(feature, layer) {
-    const nam_ja = feature.properties.nam_ja || '';
-    const code = featureCode(feature);
-    layer.on({
-      mouseover: e => {
-        e.target.setStyle({ weight: 2, fillOpacity: 0.95 });
-        const data = prefStats[code];
-        const munis = data ? data.municipalities.map(m => `${m.name}(${m.count.toLocaleString()}件)`).join('、') : 'データなし';
-        layer.bindTooltip(`<strong>${nam_ja}</strong><br>${munis}`, {sticky: true}).openTooltip();
-      },
-      mouseout: e => { geoLayer.resetStyle(e.target); }
-    });
-  }
-
+  // ── D3 地図初期化 ──
   async function initMap() {
-    if (map) return;
-    map = L.map('japan-map', { zoomControl: true, attributionControl: false });
-    map.fitBounds([[24, 122], [46, 146]]);
+    if (svgMap) return;
 
-    // 統計取得
+    let geojson;
     try {
-      const res = await fetch('/prefecture-stats');
-      const data = await res.json();
-      prefStats = data.by_prefecture || {};
-    } catch(e) {}
-
-    // GeoJSON取得・描画
-    try {
-      const res = await fetch('https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson');
-      const geojson = await res.json();
-      geoLayer = L.geoJSON(geojson, {
-        style: featureStyle,
-        onEachFeature: onEachFeature
-      }).addTo(map);
+      const [statsRes, geoRes] = await Promise.all([
+        fetch('/prefecture-stats'),
+        fetch('https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson')
+      ]);
+      const statsData = await statsRes.json();
+      prefStats = statsData.by_prefecture || {};
+      geojson = await geoRes.json();
     } catch(e) {
       document.getElementById('japan-map').innerHTML =
-        '<div style="padding:40px;text-align:center;color:#a0aec0">地図の読み込みに失敗しました</div>';
+        '<div style="padding:60px;text-align:center;color:#a0aec0;font-size:0.88rem">地図の読み込みに失敗しました</div>';
+      return;
     }
+
+    const mapEl = document.getElementById('japan-map');
+    mapEl.innerHTML = '';
+
+    const projection = d3.geoMercator().fitSize([MAP_W, MAP_H], geojson);
+    const pathGen    = d3.geoPath().projection(projection);
+
+    svgMap = d3.select('#japan-map')
+      .append('svg')
+      .attr('viewBox', `0 0 ${MAP_W} ${MAP_H}`)
+      .attr('width', '100%')
+      .attr('preserveAspectRatio', 'xMidYMid meet')
+      .style('display', 'block');
+
+    // 薄い背景
+    svgMap.append('rect')
+      .attr('width', MAP_W).attr('height', MAP_H)
+      .attr('fill', '#eef2f7');
+
+    d3PathGroup = svgMap.append('g').attr('class', 'prefectures');
+
+    d3PathGroup.selectAll('path')
+      .data(geojson.features)
+      .enter().append('path')
+      .attr('class', 'pref-path')
+      .attr('d', pathGen)
+      .attr('fill', d => getColor(featureCode(d)))
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 0.6)
+      .attr('cursor', 'pointer')
+      .on('mouseover', function(event, d) {
+        if (!d3.select(this).classed('pref-active')) {
+          d3.select(this).attr('stroke', '#2b6cb0').attr('stroke-width', 1.8).raise();
+        }
+        showMapTooltip(event, d);
+      })
+      .on('mousemove', moveMapTooltip)
+      .on('mouseout', function(event, d) {
+        if (!d3.select(this).classed('pref-active')) {
+          d3.select(this).attr('stroke', '#fff').attr('stroke-width', 0.6);
+        }
+        hideMapTooltip();
+      })
+      .on('click', function(event, d) {
+        const code = featureCode(d);
+        const name = d.properties.nam_ja || PREF_CODE_TO_JAM[code] || '';
+        handlePrefClick(code, name, this);
+      });
   }
 
   function refreshMap() {
-    if (!geoLayer) return;
-    geoLayer.setStyle(featureStyle);
+    if (!d3PathGroup) return;
+    d3PathGroup.selectAll('path.pref-path')
+      .attr('fill', d => getColor(featureCode(d)));
+  }
+
+  // ── ツールチップ ──
+  function showMapTooltip(event, d) {
+    const code = featureCode(d);
+    const name = d.properties.nam_ja || PREF_CODE_TO_JAM[code] || '';
+    const stat = prefStats[code];
+
+    let html = `<strong>${name}</strong>`;
+
+    if (hitCodes.size > 0 && hitCodes.has(code)) {
+      const n = allResults.filter(r => r.prefecture_code === code).length;
+      html += `<br><span style="color:#fc8181">検索ヒット ${n}件</span>`;
+    }
+
+    if (stat) {
+      html += `<br><span style="color:#90cdf4">収録 ${stat.total.toLocaleString()}件</span>`;
+      const munis = stat.municipalities
+        .map(m => `${m.name}：${m.count.toLocaleString()}件`)
+        .join('<br>');
+      html += `<br><small style="color:#a0aec0;line-height:1.4">${munis}</small>`;
+    } else {
+      html += `<br><span style="color:#718096">データなし</span>`;
+    }
+
+    if (allResults.length > 0) {
+      html += `<br><small style="color:#4a6fa5;margin-top:2px;display:block">クリックで絞り込み</small>`;
+    }
+
+    const tip = document.getElementById('map-tooltip');
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    moveMapTooltip(event);
+  }
+
+  function moveMapTooltip(event) {
+    const tip = document.getElementById('map-tooltip');
+    const x = event.clientX + 14;
+    const y = event.clientY - 10;
+    tip.style.left = Math.min(x, window.innerWidth - tip.offsetWidth - 8) + 'px';
+    tip.style.top  = Math.max(y, 8) + 'px';
+  }
+
+  function hideMapTooltip() {
+    document.getElementById('map-tooltip').style.display = 'none';
+  }
+
+  // ── 都道府県クリックで絞り込み ──
+  function handlePrefClick(code, name, pathEl) {
+    if (!allResults.length) return;
+
+    if (activePrefCode === code) {
+      clearPrefFilter();
+      return;
+    }
+
+    // 前の選択解除
+    if (d3PathGroup) {
+      d3PathGroup.selectAll('path.pref-path')
+        .classed('pref-active', false)
+        .attr('stroke', '#fff').attr('stroke-width', 0.6);
+    }
+
+    activePrefCode = code;
+    d3.select(pathEl)
+      .classed('pref-active', true)
+      .attr('stroke', '#2b6cb0').attr('stroke-width', 2)
+      .raise();
+
+    const filtered = allResults.filter(r => r.prefecture_code === code);
+    renderResults(filtered);
+    updateMeta(lastQuery, name, filtered.length);
+
+    // フィルターバッジ表示
+    document.getElementById('pref-filter-name').textContent = name;
+    document.getElementById('pref-filter-badge').classList.add('active');
+
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function clearPrefFilter() {
+    activePrefCode = null;
+    document.getElementById('pref-filter-badge').classList.remove('active');
+
+    if (d3PathGroup) {
+      d3PathGroup.selectAll('path.pref-path')
+        .classed('pref-active', false)
+        .attr('stroke', '#fff').attr('stroke-width', 0.6);
+    }
+
+    if (allResults.length > 0) {
+      renderResults(allResults);
+      updateMeta(lastQuery, null, allResults.length);
+    }
   }
 
   function toggleMap() {
     const container = document.getElementById('map-container');
-    const icon = document.getElementById('map-toggle-icon');
+    const icon      = document.getElementById('map-toggle-icon');
     if (container.classList.contains('open')) {
       container.classList.remove('open');
       icon.textContent = '▶';
@@ -603,7 +859,7 @@
   }
 
   // ── Enter キーで検索 ──
-  document.getElementById('query').addEventListener('keydown', function(e) {
+  document.getElementById('query').addEventListener('keydown', e => {
     if (e.key === 'Enter') doSearch();
   });
 
@@ -616,7 +872,7 @@
   // ── DB統計を初期表示 ──
   async function loadStats() {
     try {
-      const res = await fetch('/stats');
+      const res  = await fetch('/stats');
       const data = await res.json();
       const panel = document.getElementById('stats-panel');
       const chips = data.by_municipality.map(m =>
@@ -631,6 +887,7 @@
         </details>`;
     } catch(e) {}
   }
+
   loadStats();
   initMap(); // ページ読み込み時に地図を初期表示
 
@@ -639,30 +896,40 @@
     const query = document.getElementById('query').value.trim();
     if (!query) return;
 
-    const resultsEl = document.getElementById('results');
-    const metaEl = document.getElementById('meta-bar');
+    // 状態リセット
+    activePrefCode = null;
+    allResults     = [];
+    lastQuery      = query;
+    document.getElementById('pref-filter-badge').classList.remove('active');
+    if (d3PathGroup) {
+      d3PathGroup.selectAll('path.pref-path')
+        .classed('pref-active', false)
+        .attr('stroke', '#fff').attr('stroke-width', 0.6);
+    }
 
-    resultsEl.innerHTML = `
+    const metaEl = document.getElementById('meta-bar');
+    document.getElementById('results').innerHTML = `
       <div class="state-message">
         <div class="spinner"></div>
         <p>検索中…</p>
       </div>`;
-    metaEl.innerHTML = '';
+    metaEl.innerHTML = '<span id="pref-filter-badge"><span id="pref-filter-name"></span><button onclick="clearPrefFilter()" title="絞り込みを解除">✕</button></span>';
 
     try {
-      const res = await fetch('/search?q=' + encodeURIComponent(query));
+      const res  = await fetch('/search?q=' + encodeURIComponent(query));
       const data = await res.json();
 
       if (data.error) {
-        resultsEl.innerHTML = `<div class="state-message"><div class="icon">⚠️</div><p>${escHtml(data.error)}</p></div>`;
+        document.getElementById('results').innerHTML =
+          `<div class="state-message"><div class="icon">⚠️</div><p>${escHtml(data.error)}</p></div>`;
         return;
       }
 
       if (data.results.length === 0) {
         hitCodes = new Set();
         refreshMap();
-        metaEl.innerHTML = `「<span class="keyword-tag">${escHtml(query)}</span>」の検索結果：0件`;
-        resultsEl.innerHTML = `
+        updateMeta(query, null, 0);
+        document.getElementById('results').innerHTML = `
           <div class="state-message">
             <div class="icon">🔍</div>
             <p>該当する議事録が見つかりませんでした。<br>3文字以上のキーワードで再検索してください。</p>
@@ -670,24 +937,49 @@
         return;
       }
 
-      // 地図のヒット都道府県を更新
-      hitCodes = new Set(data.results.map(r => r.prefecture_code).filter(Boolean));
+      allResults = data.results;
+      hitCodes   = new Set(allResults.map(r => r.prefecture_code).filter(Boolean));
       refreshMap();
-
-      metaEl.innerHTML = `「<span class="keyword-tag">${escHtml(query)}</span>」の検索結果：<strong>${data.results.length}</strong>件`;
-
-      const cards = data.results.map(r => buildCard(r, query)).join('');
-      resultsEl.innerHTML = cards;
+      updateMeta(query, null, allResults.length);
+      renderResults(allResults);
+      document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     } catch(e) {
-      resultsEl.innerHTML = `<div class="state-message"><div class="icon">❌</div><p>通信エラーが発生しました。</p></div>`;
+      document.getElementById('results').innerHTML =
+        `<div class="state-message"><div class="icon">❌</div><p>通信エラーが発生しました。</p></div>`;
     }
+  }
+
+  function updateMeta(query, prefName, count) {
+    const badge = document.getElementById('pref-filter-badge');
+    const nameEl = document.getElementById('pref-filter-name');
+    const metaEl = document.getElementById('meta-bar');
+
+    // バッジの状態を維持しつつ件数テキスト更新
+    const prefPart = prefName
+      ? `<span id="pref-filter-badge" class="active"><span id="pref-filter-name">${escHtml(prefName)}</span><button onclick="clearPrefFilter()" title="絞り込みを解除">✕</button></span> `
+      : `<span id="pref-filter-badge"><span id="pref-filter-name"></span><button onclick="clearPrefFilter()" title="絞り込みを解除">✕</button></span>`;
+    metaEl.innerHTML = `${prefPart}「<span class="keyword-tag">${escHtml(query)}</span>」の検索結果：<strong>${count}</strong>件`;
+  }
+
+  // ── 結果描画 ──
+  function renderResults(results) {
+    const el = document.getElementById('results');
+    if (results.length === 0) {
+      el.innerHTML = `
+        <div class="state-message">
+          <div class="icon">🔍</div>
+          <p>この都道府県に該当する結果はありません。</p>
+        </div>`;
+      return;
+    }
+    el.innerHTML = results.map(r => buildCard(r, lastQuery)).join('');
   }
 
   // ── カードHTML生成 ──
   function buildCard(r, query) {
     const gradeClass = 'grade-' + r.grade;
-    const snippet = highlightKeywords(escHtml(r.snippet), query);
+    const snippet    = highlightKeywords(escHtml(r.snippet), query);
     const sourceLink = r.source_url
       ? `<a class="source-link" href="${escHtml(r.source_url)}" target="_blank" rel="noopener">🔗 ${escHtml(r.source_url)}</a>`
       : '';
@@ -721,7 +1013,7 @@
   // ── キーワードハイライト ──
   function highlightKeywords(html, query) {
     const words = query.split(/\s+/).filter(w => w.length > 0);
-    words.sort((a, b) => b.length - a.length); // 長い単語を先にマッチ
+    words.sort((a, b) => b.length - a.length);
     for (const word of words) {
       const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       html = html.replace(new RegExp(escaped, 'gi'), m => `<mark>${m}</mark>`);

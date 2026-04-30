@@ -37,3 +37,5 @@ logs/
 # DB本体はVercelビルド時に生成するためgit管理外
 db/minutes.db
 db/minutes.db.gz
+db/minutes.db.bak
+.vercel
